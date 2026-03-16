@@ -153,4 +153,6 @@ export interface BankAccount {
   account_no: string;
   ifsc: string;
   balance?: number;
+  isOD?: boolean;
+  odLimit?: number;
 }

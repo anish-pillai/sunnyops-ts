@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { db } from '@/config/supabase';
 import type { Bill } from '@/types/bill.types';
 
@@ -14,6 +14,10 @@ export function useBills(assignedSites?: string[]) {
     setBills(data ?? []);
     setLoading(false);
   }, [assignedSites?.join(',')]);
+
+  useEffect(() => {
+    fetch();
+  }, [fetch]);
 
   const save = useCallback(async (
     bill: Omit<Bill, 'id' | 'created_at'>,
