@@ -461,6 +461,34 @@ export const PayablesTab: React.FC = () => {
     return items;
   };
 
+  const printCardPDF = (key: string) => {
+    const items = cardDetailItems(key);
+    const isReceivable = key === "receivable";
+    const title = key.startsWith("site:") ? `Outstanding: ${key.slice(5)}` : ({ outstanding: "Outstanding Payables", overdue: "Overdue Payables", receivable: "Bills Receivable", net: "All Payables", paid: "Paid This Cycle", od: "OD Utilization" } as any)[key] || key;
+
+    let html = "";
+    if (key === "od") {
+      html = `<table><thead><tr><th>#</th><th>BANK NAME</th><th>ACCOUNT NO</th><th style="text-align:right">LIMIT</th><th style="text-align:right">USED</th></tr></thead><tbody>`;
+      banks.filter(b => b.isOD).forEach((b, i) => {
+        html += `<tr><td>${i + 1}</td><td><b>${b.name}</b></td><td>${b.account_no}</td><td style="text-align:right">₹${(b.odLimit || 0).toLocaleString("en-IN")}</td><td style="text-align:right;color:#dc2626;font-weight:bold">₹${parseFloat(b.balance as any || 0).toLocaleString("en-IN")}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    } else {
+      html = `<table><thead><tr><th>#</th><th>${isReceivable ? "INV NO" : "VENDOR"}</th><th>SITE</th><th>DESCRIPTION</th><th style="text-align:right">${isReceivable ? "BILLED" : "BASE AMT"}</th><th style="text-align:right">${isReceivable ? "BALANCE" : "DUE DATE"}</th><th>STATUS</th></tr></thead><tbody>`;
+      items.forEach((p: any, n: number) => {
+        if (isReceivable) {
+          html += `<tr><td>${n + 1}</td><td><b>${p.inv_no}</b></td><td>${p.site}</td><td>${p.bill_details || "-"}</td><td style="text-align:right">₹${parseFloat(p.amount_with_gst || 0).toLocaleString("en-IN")}</td><td style="text-align:right;color:#dc2626;font-weight:bold">₹${getBal(p).toLocaleString("en-IN")}</td><td>${p.bill_status}</td></tr>`;
+        } else {
+          html += `<tr><td>${n + 1}</td><td><b>${p.vendor}</b>${p.vendor_gstin ? `<br><small>${p.vendor_gstin}</small>` : ""}</td><td>${p.site}</td><td>${p.description || "-"}</td><td style="text-align:right">₹${parseFloat(p.amount || 0).toLocaleString("en-IN")}</td><td>${p.due_date ? new Date(p.due_date).toLocaleDateString("en-IN") : "-"}</td><td>${p.status}</td></tr>`;
+        }
+      });
+      html += `</tbody></table>`;
+    }
+    
+    html += `<p style="font-size:10px;color:#64748b;margin-top:10px">Total: ${items.length || banks.filter(b => b.isOD).length} records</p>`;
+    printPDF(title, html);
+  };
+
   const columns: Column<Payable>[] = [
     { header: 'Vendor', render: (p) => (
       <div onClick={() => openVendorLedger(p.vendor)} style={{ fontWeight: 600, color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline' }} title="Click to view vendor ledger">
@@ -751,6 +779,9 @@ export const PayablesTab: React.FC = () => {
         <Modal 
           title={cardDetail && cardDetail.startsWith("site:") ? `Outstanding: ${cardDetail.slice(5)}` : ({ outstanding: "Outstanding Payables", overdue: "Overdue Payables", receivable: "Bills Receivable", net: "All Payables", paid: "Paid This Cycle", od: "OD Utilization" } as any)[cardDetail] || cardDetail} 
           onClose={() => { setCardDetail(null); setCdFrom(""); setCdTo(""); setCdSite(""); }} wide
+          headerActions={
+            <Button variant="ghost" onClick={() => printCardPDF(cardDetail!)} style={{ fontSize: 10 }}>⬇ PDF</Button>
+          }
         >
            {cardDetail === 'od' ? (
              <div style={{ padding: 10 }}>

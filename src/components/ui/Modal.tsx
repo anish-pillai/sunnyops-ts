@@ -5,9 +5,10 @@ interface ModalProps {
   onClose: () => void;
   wide?: boolean;
   children: React.ReactNode;
+  headerActions?: React.ReactNode;
 }
 
-export const Modal: React.FC<ModalProps> = ({ title, onClose, wide = false, children }) => (
+export const Modal: React.FC<ModalProps> = ({ title, onClose, wide = false, children, headerActions }) => (
   <div
     onClick={e => e.target === e.currentTarget && onClose()}
     style={{
@@ -37,10 +38,13 @@ export const Modal: React.FC<ModalProps> = ({ title, onClose, wide = false, chil
         padding: '16px 20px', borderBottom: '1px solid #e2e8f0',
       }}>
         <div style={{ fontWeight: 800, fontSize: 15, color: '#0f172a' }}>{title}</div>
-        <button
-          onClick={onClose}
-          style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}
-        >×</button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {headerActions}
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}
+          >×</button>
+        </div>
       </div>
       <div style={{ padding: '20px 24px' }}>{children}</div>
     </div>
