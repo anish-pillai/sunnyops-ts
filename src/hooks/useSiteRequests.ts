@@ -8,7 +8,7 @@ export function useSiteRequests(assignedSites?: string[]) {
 
   const fetch = useCallback(async () => {
     setLoading(true);
-    let q = db.from('site_requests').select('*').order('raised_at', { ascending: false });
+    let q = db.from('site_requests').select('*').order('created_at', { ascending: false });
     if (assignedSites?.length) q = q.in('requesting_site', assignedSites);
     const { data } = await q;
     setRequests(data ?? []);
