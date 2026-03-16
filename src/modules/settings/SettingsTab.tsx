@@ -1,18 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
-import type { UserRole } from '@/types/user.types';
-
-interface Props {
-  isAdmin: boolean;
-  currentUserEmail: string;
-  uName: string;
-  showToast: (msg: string, type?: 'ok' | 'err') => void;
-}
+import { useSettings } from '@/hooks/useSettings';
+import { UserManagementTab } from './components/UserManagementTab';
+import { SiteManagementTab } from './components/SiteManagementTab';
+import { RolePermissionsTab } from './components/RolePermissionsTab';
 
 type View = 'users' | 'sites' | 'permissions' | 'biometric';
 
-export const SettingsTab: React.FC<Props> = ({ isAdmin, currentUserEmail, uName, showToast }) => {
-  const [view, setView] = useState<View>('users');
+export const SettingsTab: React.FC = () => {
+  const [view, setView] = useState<View>('biometric');
+  const { 
+    loading, siteDetails, rolePerms, users, 
+    fetchSiteDetails, fetchRolePermissions, fetchUsers, 
+    saveSiteDetails, saveRolePermissions, updateUserProfile 
+  } = useSettings();
+
+  useEffect(() => {
+    fetchSiteDetails();
+    fetchRolePermissions();
+  }, [fetchSiteDetails, fetchRolePermissions]);
 
   const tabs: { key: View; label: string }[] = [
     { key: 'users', label: 'Users' },
@@ -34,28 +40,29 @@ export const SettingsTab: React.FC<Props> = ({ isAdmin, currentUserEmail, uName,
       </div>
 
       {view === 'users' && (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 24 }}>
-          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: '#64748b', marginBottom: 16 }}>
-            User management module — create, edit, assign roles and sites for each team member.
-          </div>
-          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 16px', fontSize: 12, color: '#1d4ed8' }}>
-            ℹ️ To add or edit users, the Supabase Service Role Key must be set. Go to the original app (index.html) Settings → Users to manage users until this module is fully built.
-          </div>
-        </div>
+        <UserManagementTab 
+          users={users} 
+          loading={loading} 
+          onRefresh={fetchUsers} 
+          onUpdate={updateUserProfile} 
+          sites={siteDetails}
+        />
       )}
 
       {view === 'sites' && (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 24 }}>
-          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: '#64748b', letterSpacing: 1, marginBottom: 12, fontWeight: 700 }}>SITE DETAILS</div>
-          <p style={{ fontSize: 12, color: '#64748b' }}>Site configuration (names, GSTINs, addresses) is managed from the Supabase <code>app_settings</code> table under key <code>site_details</code>.</p>
-        </div>
+        <SiteManagementTab 
+          sites={siteDetails} 
+          onSave={saveSiteDetails} 
+          loading={loading} 
+        />
       )}
 
       {view === 'permissions' && (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 24 }}>
-          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: '#64748b', letterSpacing: 1, marginBottom: 12, fontWeight: 700 }}>ROLE PERMISSIONS</div>
-          <p style={{ fontSize: 12, color: '#64748b' }}>Permission matrix is stored in the Supabase <code>app_settings</code> table under key <code>role_permissions</code>. Changes apply to all users of that role immediately.</p>
-        </div>
+        <RolePermissionsTab 
+          rolePerms={rolePerms} 
+          onSave={saveRolePermissions} 
+          loading={loading} 
+        />
       )}
 
       {view === 'biometric' && (

@@ -4,6 +4,12 @@ export function fmtINR(val: number | null | undefined): string {
   return '₹' + Math.round(val).toLocaleString('en-IN');
 }
 
+/** Format number: 1234567 → "12,34,567" */
+export function fmtNum(val: number | null | undefined): string {
+  if (val == null) return '—';
+  return Math.round(val).toLocaleString('en-IN');
+}
+
 /** Compact INR: 1500000 → "₹15L", 75000 → "₹75K" */
 export function fmtINRCompact(val: number): string {
   if (val >= 10_00_000) return '₹' + (val / 10_00_000).toFixed(1) + 'L';

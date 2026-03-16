@@ -1,4 +1,4 @@
-export type POStatus = 'Draft' | 'Approved' | 'Received' | 'Cancelled';
+export type POStatus = 'Draft' | 'Pending Purchase' | 'Ordered' | 'Received' | 'Cancelled';
 
 export interface POLineItem {
   description: string;
@@ -17,10 +17,12 @@ export interface PurchaseOrder {
   id: string;
   po_no: string;
   date: string;
+  firm: 'opc' | 'pvt';
   site: string;
   vendor_name: string;
   vendor_gstin?: string;
   vendor_address?: string;
+  vendor_email?: string;
   items: POLineItem[];
   sub_total: number;
   total_gst: number;
@@ -42,12 +44,18 @@ export interface QuotationItem {
 export interface Quotation {
   id: string;
   ref_no: string;
+  type: 'QUT' | 'BUD';
+  firm: 'opc' | 'pvt';
   date: string;
   client: string;
+  client_name: string;
+  client_gstin?: string;
+  client_address?: string;
   site: string;
   subject: string;
   items: QuotationItem[];
   total: number;
   status: 'Draft' | 'Sent' | 'Accepted' | 'Rejected';
+  terms?: string;
   created_at: string;
 }

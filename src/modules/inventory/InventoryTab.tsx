@@ -5,7 +5,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { Modal } from '@/components/ui/Modal';
 import { fmtDate } from '@/utils/formatters';
 import { INVENTORY_CATEGORIES, CONDITIONS, UNITS, DEFAULT_SITE_DETAILS } from '@/config/constants';
-import type { InventoryItem, ItemCondition } from '@/types/inventory.types';
+import type { InventoryItem } from '@/types/inventory.types';
 
 interface Props { isAdmin: boolean; uName: string; showToast: (msg: string, type?: 'ok' | 'err') => void; }
 const SITES = DEFAULT_SITE_DETAILS.map(s => s.name);

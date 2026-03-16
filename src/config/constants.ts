@@ -70,3 +70,92 @@ export const GST_RATES = [0, 5, 12, 18, 28] as const;
 
 // Our company state code for GST intra/inter state detection
 export const OUR_STATE_CODE = '29'; // Karnataka
+
+export const FIRMS = [
+  { key: "opc", name: "P. Sunny Engineering Contractors (OPC) Pvt. Ltd.", short: "P. Sunny Engg (OPC)", gst: "29AAOCP5225B1ZE" },
+  { key: "prop", name: "P. Sunny Engineering Contractor", short: "P. Sunny Engineering Contractor", gst: "24ASKPS0046G1ZK" },
+] as const;
+
+// ── E-Invoice Constants ──────────────────────────────────────────────
+
+export interface EIClient {
+  name: string;
+  gstin: string;
+  address: string;
+  state: string;
+  state_code: string;
+}
+
+export const EI_CLIENTS: EIClient[] = [
+  { name: 'MRPL',         gstin: '29AAACM5132A1ZZ', address: 'Kutherthooru, Mangaluru, Karnataka - 575030', state: 'Karnataka',     state_code: '29' },
+  { name: 'MEIL/Anpara',  gstin: '09AABCL2313B1Z6', address: 'Anpara, Sonebhadra, Uttar Pradesh - 231225',  state: 'Uttar Pradesh', state_code: '09' },
+  { name: 'UPCL',         gstin: '',                 address: 'Yelluru Padubidri, Udupi, Karnataka - 574113', state: 'Karnataka',    state_code: '29' },
+  { name: 'BTPS-Bellary', gstin: '29AAACK8032D1ZQ', address: 'Kudithini, Bellary, Karnataka - 583152',       state: 'Karnataka',     state_code: '29' },
+  { name: 'Moxi',         gstin: '33AARCM7295H1ZV', address: 'Melamaruthur, Tamil Nadu - 628105',            state: 'Tamil Nadu',    state_code: '33' },
+  { name: 'GAIL',         gstin: '',                 address: '',                                              state: '',              state_code: ''   },
+  { name: 'ADANI',        gstin: '',                 address: '',                                              state: '',              state_code: ''   },
+  { name: 'KPCL',         gstin: '29AAACK0610R1ZN', address: 'Bellary, Karnataka',                            state: 'Karnataka',     state_code: '29' },
+];
+
+export const EI_DEFAULT_HSN = '998719';
+
+export const EI_HSN_CODES = [
+  { code: '998719', desc: 'Maintenance, repair of other machinery & equipment (DEFAULT)' },
+  { code: '995411', desc: 'Civil construction works' },
+  { code: '995414', desc: 'Construction — Pipelines, Mechanical' },
+  { code: '995415', desc: 'Erection & Commissioning' },
+  { code: '998511', desc: 'Labour supply / manpower' },
+  { code: '996713', desc: 'Cargo handling services' },
+] as const;
+
+export const EI_UNITS = ['LS', 'Job', 'MT', 'M3', 'Nos', 'RMT', 'Mtr', 'Sqm', 'Cum', 'Hrs', 'Days', '%'] as const;
+
+export const EI_STATUSES = ['Draft', 'Submitted', 'IRN Obtained', 'Pushed to Bills', 'Cancelled'] as const;
+
+export const EI_STATUS_COLORS: Record<string, { bg: string; c: string; br: string }> = {
+  'Draft':           { bg: '#f1f5f9', c: '#475569', br: '#cbd5e1' },
+  'Submitted':       { bg: '#eff6ff', c: '#1d4ed8', br: '#bfdbfe' },
+  'IRN Obtained':    { bg: '#f0fdf4', c: '#16a34a', br: '#bbf7d0' },
+  'Pushed to Bills': { bg: '#fff7ed', c: '#c2410c', br: '#fed7aa' },
+  'Cancelled':       { bg: '#fef2f2', c: '#dc2626', br: '#fecaca' },
+};
+
+// ── CN/DN Constants ──────────────────────────────────────────────────
+
+export const CDN_STATUSES = ['Draft', 'Submitted', 'IRN Obtained', 'Cancelled'] as const;
+
+export const CDN_STATUS_COLORS: Record<string, { bg: string; c: string; br: string }> = {
+  'Draft':        { bg: '#f1f5f9', c: '#475569', br: '#cbd5e1' },
+  'Submitted':    { bg: '#eff6ff', c: '#1d4ed8', br: '#bfdbfe' },
+  'IRN Obtained': { bg: '#f0fdf4', c: '#16a34a', br: '#bbf7d0' },
+  'Cancelled':    { bg: '#fef2f2', c: '#dc2626', br: '#fecaca' },
+};
+
+export const CDN_REASONS = [
+  'Invoice raised with wrong amount — full cancellation',
+  'Partial cancellation / rate revision downward',
+  'Quantity shortfall / work scope reduction',
+  'Client deduction dispute — partial credit',
+  'Additional charges to client (Debit Note)',
+  'Price escalation / rate revision upward (Debit Note)',
+  'Other',
+] as const;
+
+export const PO_STATUSES = ['Draft', 'Pending Purchase', 'Ordered', 'Received', 'Cancelled'] as const;
+
+export const PO_STATUS_COLORS: Record<string, { bg: string; c: string; br: string }> = {
+  'Draft': { bg: '#f1f5f9', c: '#475569', br: '#cbd5e1' },
+  'Pending Purchase': { bg: '#fffbeb', c: '#92400e', br: '#fcd34d' },
+  'Ordered': { bg: '#eff6ff', c: '#1d4ed8', br: '#bfdbfe' },
+  'Received': { bg: '#f0fdf4', c: '#16a34a', br: '#bbf7d0' },
+  'Cancelled': { bg: '#fef2f2', c: '#dc2626', br: '#fecaca' },
+};
+
+export const QUT_STATUSES = ['Draft', 'Sent', 'Accepted', 'Rejected'] as const;
+
+export const QUT_COLORS: Record<string, { bg: string; c: string; br: string }> = {
+  'Draft': { bg: '#f1f5f9', c: '#475569', br: '#cbd5e1' },
+  'Sent': { bg: '#eff6ff', c: '#1d4ed8', br: '#bfdbfe' },
+  'Accepted': { bg: '#f0fdf4', c: '#16a34a', br: '#bbf7d0' },
+  'Rejected': { bg: '#fef2f2', c: '#dc2626', br: '#fecaca' },
+};

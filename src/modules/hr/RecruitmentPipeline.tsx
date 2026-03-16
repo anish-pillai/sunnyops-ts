@@ -59,7 +59,7 @@ export const RecruitmentPipeline: React.FC<RecruitmentPipelineProps> = ({
               {stageApps.length === 0
                 ? <div style={{ padding: '12px 14px', fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>No applicants</div>
                 : stageApps.map(a => {
-                    const latestRound = a.interview_rounds?.at(-1);
+                    const latestRound = a.interview_rounds && a.interview_rounds.length > 0 ? a.interview_rounds[a.interview_rounds.length - 1] : undefined;
                     return (
                       <div
                         key={a.id}

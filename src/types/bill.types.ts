@@ -3,17 +3,29 @@ export type BillStatus = 'Pending' | 'Partial' | 'Paid';
 export interface Bill {
   id: string;
   site: string;
-  bill_no: string;
-  date: string;
-  description: string;
-  gross_amount: number;
-  gst_amount: number;
-  sd_amount: number;
-  gst_hold: number;
-  net_receivable: number;
-  received_amount: number;
+  inv_no: string;
+  invoice_date: string;
+  bill_details: string;
+  amount: number;
+  amount_with_gst: number;
+  balance_to_receive?: number;
+  tds?: number;
+  tds_on_gst?: number;
+  security_deposit?: number;
+  hra_deduction?: number;
+  gst_hold?: number;
+  other_deductions?: number;
+  credit_note?: number;
+  credit_note2?: number;
+  hra_received?: number;
+  sd_received?: number;
+  gst_received?: number;
+  others_received?: number;
+  amount_credited?: number;
   wo_no?: string;
-  status: BillStatus;
+  bill_status: string;
+  gst_status?: string;
+  status2?: string;
   remarks?: string;
   created_at: string;
   updated_at?: string;
@@ -25,70 +37,114 @@ export interface WorkOrder {
   wo_no: string;
   site: string;
   description: string;
-  value: number;
-  amendments?: WorkOrderAmendment[];
+  wo_value: number;
+  start_date?: string;
+  end_date?: string;
+  parent_wo_no?: string;
+  amendment_no?: number;
   created_at: string;
-}
-
-export interface WorkOrderAmendment {
-  date: string;
-  value: number;
-  reason: string;
+  updated_at?: string;
 }
 
 export interface EInvoiceLineItem {
-  description: string;
-  hsn_sac: string;
-  qty: number;
+  id?: number | string;
+  description?: string;
+  desc?: string;
+  hsn_sac?: string;
+  hsn?: string;
+  qty: number | string;
   unit: string;
-  rate: number;
-  amount: number;
-  gst_rate: number;
-  cgst: number;
-  sgst: number;
-  igst: number;
+  rate: number | string;
+  amount: number | string;
+  gst_rate?: number;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
 }
 
 export interface EInvoice {
   id: string;
+  inv_no?: string;
   invoice_no: string;
-  date: string;
+  invoice_date: string;
+  firm?: string;
+  client_name?: string;
+  wo_no?: string;
   site: string;
-  items: EInvoiceLineItem[];
-  sub_total: number;
-  total_gst: number;
-  grand_total: number;
+  items?: EInvoiceLineItem[];
+  line_items?: string | EInvoiceLineItem[];
+  taxable_value?: number;
+  gst_type?: string;
+  gst_percent?: number | string;
+  gst_amount?: number;
+  sub_total?: number;
+  total_gst?: number;
+  total_amount?: number;
+  grand_total?: number;
+  tds_amount?: number | string;
   irn?: string;
-  status: 'Draft' | 'Submitted' | 'Cancelled';
+  eway_bill?: string;
+  description?: string;
+  remarks?: string;
+  bill_id?: string;
+  signed_by?: string;
+  signed_desig?: string;
+  signed_at?: string;
+  status: string;
   created_at: string;
   created_by?: string;
+  updated_at?: string;
 }
 
 export interface CreditDebitNote {
   id: string;
-  cdn_no: string;
-  type: 'Credit' | 'Debit';
-  date: string;
-  against_invoice?: string;
+  note_no: string;
+  note_type: 'Credit' | 'Debit';
+  note_date: string;
+  ref_inv_no?: string;
+  ref_inv_id?: string;
+  ref_inv_date?: string;
+  client_name?: string;
   site: string;
-  amount: number;
+  firm?: string;
+  gst_percent?: number | string;
+  taxable_value: number | string;
+  gst_amount?: number | string;
+  total_amount: number | string;
+  tds_amount?: number | string;
   reason: string;
+  description?: string;
+  irn?: string;
+  status: string;
+  bill_id?: string;
+  remarks?: string;
+  signed_by?: string;
+  signed_desig?: string;
+  signed_at?: string;
   created_at: string;
+  created_by?: string;
+  updated_at?: string;
 }
 
 export interface Payable {
   id: string;
-  site: string;
   vendor: string;
-  bill_no?: string;
-  date: string;
-  description: string;
-  amount: number;
-  paid_amount: number;
-  status: 'Pending' | 'Partial' | 'Paid';
+  vendor_gstin?: string;
+  site: string;
   category: string;
+  invoice_no?: string;
+  po_no?: string;
+  description?: string;
+  amount: number | string;
+  gst_percent?: string;
+  amount_with_gst?: number | string;
+  due_date?: string;
+  status: string;
+  paid_date?: string;
+  payment_mode?: string;
   remarks?: string;
-  created_at: string;
+  created_by?: string;
+  created_at?: string;
   updated_at?: string;
 }
 

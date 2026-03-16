@@ -38,21 +38,34 @@ export const DashboardTab: React.FC<Props> = ({ assignedSites }) => {
 
   if (loading) return <Spinner />;
 
-  const totalReceivable = bills.reduce((s, b) => s + (b.net_receivable - b.received_amount), 0);
-  const totalPayable = payables.reduce((s, p) => s + (p.amount - p.paid_amount), 0);
-  const totalBilled = bills.reduce((s, b) => s + b.gross_amount, 0);
-  const totalPaid = bills.reduce((s, b) => s + b.received_amount, 0);
+  const getBal = (b: Bill) => {
+    const stored = Number(b.balance_to_receive || 0);
+    if (stored > 0) return stored;
+    if (b.bill_status === 'RECEIVED' || b.bill_status === 'CANCELLED') return 0;
+    const base = Number(b.amount_with_gst || b.amount || 0);
+    const deductions = ['tds', 'tds_on_gst', 'security_deposit', 'hra_deduction', 'gst_hold', 'other_deductions', 'credit_note', 'credit_note2'].reduce((s, k) => s + Number((b as any)[k] || 0), 0);
+    const received = ['hra_received', 'sd_received', 'gst_received', 'others_received', 'amount_credited'].reduce((s, k) => s + Number((b as any)[k] || 0), 0);
+    return Math.max(0, base - deductions - received);
+  };
+
+  const validBills = bills.filter(b => b.bill_status !== 'CANCELLED');
+  const totalReceivable = validBills.reduce((s, b) => s + getBal(b), 0);
+  const totalPayable = payables.filter(p => p.status !== 'Paid').reduce((s, p) => s + Number(p.amount || 0), 0);
+  const totalBilled = validBills.reduce((s, b) => s + Number(b.amount_with_gst || 0), 0);
+  const totalPaid = totalBilled - totalReceivable;
 
   // Site-wise summary
   const sites = [...new Set(bills.map(b => b.site))];
   const siteData = sites.map(site => {
-    const sb = bills.filter(b => b.site === site);
-    const sp = payables.filter(p => p.site === site);
+    const sb = validBills.filter(b => b.site === site);
+    const sp = payables.filter(p => p.site === site && p.status !== 'Paid');
+    const billed = sb.reduce((s, b) => s + Number(b.amount_with_gst || 0), 0);
+    const pending = sb.reduce((s, b) => s + getBal(b), 0);
     return {
       site,
-      billed: sb.reduce((s, b) => s + b.gross_amount, 0),
-      received: sb.reduce((s, b) => s + b.received_amount, 0),
-      payable: sp.reduce((s, p) => s + (p.amount - p.paid_amount), 0),
+      billed,
+      received: billed - pending,
+      payable: sp.reduce((s, p) => s + Number(p.amount || 0), 0),
     };
   }).sort((a, b) => b.billed - a.billed);
 
@@ -114,9 +127,9 @@ export const DashboardTab: React.FC<Props> = ({ assignedSites }) => {
       {/* Bills status breakdown */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
         {[
-          { label: 'Pending Bills', val: bills.filter(b => b.status === 'Pending').length, color: '#d97706' },
-          { label: 'Partially Paid', val: bills.filter(b => b.status === 'Partial').length, color: '#1d4ed8' },
-          { label: 'Fully Paid', val: bills.filter(b => b.status === 'Paid').length, color: '#16a34a' },
+          { label: 'Pending Bills', val: bills.filter(b => getBal(b) > 0).length, color: '#d97706' },
+          { label: 'Total Invoices', val: bills.length, color: '#1d4ed8' },
+          { label: 'Received Bills', val: bills.filter(b => b.bill_status === 'RECEIVED').length, color: '#16a34a' },
           { label: 'Pending Payables', val: payables.filter(p => p.status !== 'Paid').length, color: '#dc2626' },
         ].map(s => (
           <div key={s.label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '14px 18px' }}>

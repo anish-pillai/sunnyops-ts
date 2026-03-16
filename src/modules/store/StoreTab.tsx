@@ -3,7 +3,7 @@ import { useStore } from '@/hooks/useStore';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { fmtINR, fmtDate } from '@/utils/formatters';
-import type { StoreItem } from '@/types/store.types';
+
 
 interface Props {
   isAdmin: boolean;

@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface ModalProps {
-  title: string;
+  title: React.ReactNode;
   onClose: () => void;
   wide?: boolean;
   children: React.ReactNode;
@@ -28,7 +28,7 @@ export const Modal: React.FC<ModalProps> = ({ title, onClose, wide = false, chil
         borderRadius: 12,
         border: '1px solid #e2e8f0',
         width: '100%',
-        maxWidth: wide ? 680 : 500,
+        maxWidth: wide ? 900 : 500,
         boxShadow: '0 20px 60px rgba(0,0,0,.2)',
       }}
     >

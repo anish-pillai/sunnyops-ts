@@ -1,52 +1,61 @@
-export type RequestType = 'mobilization' | 'demobilization' | 'material';
+export type RequestType = 'Mobilization' | 'Demobilization' | 'From Stock' | 'Material' | 'Service' | 'Normal' | string;
+
 export type RequestStatus =
   | 'Pending'
-  | 'Approved'
+  | 'Under Review'
+  | 'Stock Checked'
+  | 'Needs Procurement'
+  | 'With Planning'
   | 'With Director'
-  | 'Completed'
-  | 'Rejected';
-
-export interface RequestItem {
-  item_id?: string;
-  item_name: string;
-  qty: number;
-  unit?: string;
-  remarks?: string;
-}
+  | 'Forwarded to Admin'
+  | 'Approved'
+  | 'Rejected'
+  | string;
 
 export interface SiteRequest {
   id: string;
-  type: RequestType;
+  request_type: RequestType;
   requesting_site: string;
   status: RequestStatus;
-  raised_by: string;
-  raised_at: string;
-  items: RequestItem[];
+  priority?: string;
+  item_name?: string;
+  item_id?: number | string;
+  qty?: number;
   remarks?: string;
+  required_by?: string;
+  raised_by?: string;
+  raised_by_name?: string;
+  created_at: string;
+  tat_note?: string;
+  action_note?: string;
+  purchase_items?: string;
+  challan_no?: string;
+  plan_id?: string;
   approved_by?: string;
   approved_at?: string;
-  mob_refs?: string[];
 }
 
 export interface Challan {
   id: string;
   challan_no: string;
   date: string;
+  item_id?: number | string;
+  item_name: string;
+  item_alias?: string;
+  category?: string;
+  unit?: string;
+  condition?: string;
   from_site: string;
   to_site: string;
-  vehicle_no?: string;
-  items: ChallanItem[];
-  remarks?: string;
-  ewb_no?: string;
-  ewb_date?: string;
-  ewb_valid_till?: string;
-  issued_by_name?: string;
-  created_at: string;
-}
-
-export interface ChallanItem {
-  name: string;
   qty: number;
-  unit?: string;
-  serial_no?: string;
+  remarks?: string;
+  issued_by?: string;
+  issued_by_name?: string;
+  created_by_name?: string;
+  requested_by?: string;
+  reviewed_by_name?: string;
+  purpose?: string;
+  ewb_no?: string;
+  ewb_valid_upto?: string;
+  created_at: string;
 }

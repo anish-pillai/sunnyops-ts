@@ -6,3 +6,4 @@ dist/
 *.zip
 *.bak
 coverage/
+old-working-version/

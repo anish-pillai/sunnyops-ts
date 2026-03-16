@@ -14,8 +14,8 @@ interface Props {
   showToast: (msg: string, type?: 'ok' | 'err') => void;
 }
 
-export const HRTab: React.FC<Props> = ({ isAdmin, uName, showToast }) => {
-  const { applicants, loading, fetch, save, moveStage } = useRecruitment();
+export const HRTab: React.FC<Props> = ({ uName, showToast }) => {
+  const { applicants, loading, fetch, moveStage } = useRecruitment();
   const [selected, setSelected] = useState<Applicant | null>(null);
   const [movingTo, setMovingTo] = useState<RecruitmentStage | null>(null);
 
