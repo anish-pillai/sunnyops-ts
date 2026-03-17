@@ -22,9 +22,9 @@ export const PurchaseOrdersSubTab: React.FC<Props> = ({ pos, loading, isAdmin, o
   const filtered = pos.filter(p => {
     const matchesStatus = filterStatus === 'All' || p.status === filterStatus;
     const matchesSearch = !search || 
-      p.po_no.toLowerCase().includes(search.toLowerCase()) || 
-      p.vendor_name.toLowerCase().includes(search.toLowerCase()) || 
-      p.site.toLowerCase().includes(search.toLowerCase());
+      (p.po_no || '').toLowerCase().includes(search.toLowerCase()) || 
+      (p.vendor_name || '').toLowerCase().includes(search.toLowerCase()) || 
+      (p.site || '').toLowerCase().includes(search.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -111,7 +111,7 @@ export const PurchaseOrdersSubTab: React.FC<Props> = ({ pos, loading, isAdmin, o
                       <span>{new Date(po.date || po.created_at).toLocaleDateString("en-IN")}</span>
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', fontFamily: 'IBM Plex Mono, monospace' }}>
-                      ₹ {po.grand_total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      ₹ {(po.grand_total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 5 }}>

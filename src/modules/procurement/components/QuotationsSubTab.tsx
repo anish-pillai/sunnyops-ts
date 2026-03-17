@@ -22,9 +22,9 @@ export const QuotationsSubTab: React.FC<Props> = ({ quotations, loading, isAdmin
   const filtered = quotations.filter(q => {
     const matchesStatus = filterStatus === 'All' || q.status === filterStatus;
     const matchesSearch = !search || 
-      q.ref_no.toLowerCase().includes(search.toLowerCase()) || 
-      (q as any).client_name?.toLowerCase().includes(search.toLowerCase()) || 
-      q.site.toLowerCase().includes(search.toLowerCase());
+      (q.ref_no || '').toLowerCase().includes(search.toLowerCase()) || 
+      ((q as any).client_name || '').toLowerCase().includes(search.toLowerCase()) || 
+      (q.site || '').toLowerCase().includes(search.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
