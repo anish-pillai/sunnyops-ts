@@ -96,7 +96,7 @@ export const DashboardTab: React.FC<Props> = ({ assignedSites }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: colors.slate50 }}>
-                {['Site', 'Billed', 'Received', 'Outstanding', 'Payable'].map(h => (
+                {['Sit e', 'Billed', 'Received', 'Outstanding', 'Payable'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: h === 'Site' ? 'left' : 'right', fontSize: 9, color: colors.textSecondary, fontFamily: fonts.mono, letterSpacing: 1, borderBottom: `1px solid ${colors.border}` }}>{h}</th>
                 ))}
               </tr>
