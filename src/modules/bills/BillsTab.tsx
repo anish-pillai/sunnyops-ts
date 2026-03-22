@@ -541,45 +541,33 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, userRole, assignedSi
           }
           onClose={() => setCardModal(null)}
         >
-          <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-              <thead style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
-                <tr style={{ background: '#f8fafc' }}>
-                  {['INV NO', 'SITE', 'DESCRIPTION', 'INV DATE', 'AMOUNT', 'INCL GST', 'BALANCE', 'STATUS'].map(h => (
-                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 9, color: '#94a3b8', letterSpacing: 1.5, borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap', fontWeight: 700 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.filter(b => {
-                  if (cardModal === 'billed' || cardModal === 'gst') return b.bill_status !== 'CANCELLED';
-                  if (cardModal === 'pending') return getBal(b) > 0;
-                  if (cardModal === 'sd') return Number(b.security_deposit || 0) - Number(b.sd_received || 0) > 0;
-                  if (cardModal === 'hra') return Number(b.hra_deduction || 0) - Number(b.hra_received || 0) > 0;
-                  if (cardModal === 'gsthold') return Number(b.gst_hold || 0) - Number(b.gst_received || 0) > 0;
-                  if (cardModal === 'received') return getBal(b) === 0 && b.bill_status !== 'CANCELLED';
-                  return getBal(b) > 0 && b.bill_status !== 'CANCELLED';
-                }).map(b => (
-                  <tr key={b.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 700 }}>{b.inv_no}</td>
-                    <td style={{ padding: '10px 12px' }}>{b.site}</td>
-                    <td style={{ padding: '10px 12px', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.bill_details}</td>
-                    <td style={{ padding: '10px 12px' }}>{fmtDate(b.invoice_date)}</td>
-                    <td style={{ padding: '10px 12px' }}>{fmtINR(b.amount)}</td>
-                    <td style={{ padding: '10px 12px' }}>{fmtINR(b.amount_with_gst)}</td>
-                    <td style={{ padding: '10px 12px', color: '#dc2626', fontWeight: 700 }}>{fmtINR(getBal(b))}</td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ 
-                        background: (statusColor[b.bill_status] || statusColor['Pending']).bg, 
-                        color: (statusColor[b.bill_status] || statusColor['Pending']).c,
-                        padding: '2px 8px', borderRadius: 20, fontSize: 9, fontWeight: 700
-                      }}>{b.bill_status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<Bill>
+            data={filtered.filter(b => {
+              if (cardModal === 'billed' || cardModal === 'gst') return b.bill_status !== 'CANCELLED';
+              if (cardModal === 'pending') return getBal(b) > 0;
+              if (cardModal === 'sd') return Number(b.security_deposit || 0) - Number(b.sd_received || 0) > 0;
+              if (cardModal === 'hra') return Number(b.hra_deduction || 0) - Number(b.hra_received || 0) > 0;
+              if (cardModal === 'gsthold') return Number(b.gst_hold || 0) - Number(b.gst_received || 0) > 0;
+              if (cardModal === 'received') return getBal(b) === 0 && b.bill_status !== 'CANCELLED';
+              return getBal(b) > 0 && b.bill_status !== 'CANCELLED';
+            })}
+            initialPageSize={25}
+            pageSizeOptions={[10, 25, 50, 100]}
+            emptyMessage="No bills match this filter."
+            columns={[
+              { header: 'Inv No', render: (b) => <span style={{ fontWeight: 700 }}>{b.inv_no}</span> },
+              { header: 'Site', key: 'site' },
+              { header: 'Description', render: (b) => <span style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>{b.bill_details}</span> },
+              { header: 'Inv Date', render: (b) => fmtDate(b.invoice_date) },
+              { header: 'Amount', render: (b) => fmtINR(b.amount), align: 'right' },
+              { header: 'Incl GST', render: (b) => fmtINR(b.amount_with_gst), align: 'right' },
+              { header: 'Balance', render: (b) => <span style={{ color: '#dc2626', fontWeight: 700 }}>{fmtINR(getBal(b))}</span>, align: 'right' },
+              { header: 'Status', render: (b) => {
+                const sc = statusColor[b.bill_status] || statusColor['Pending'];
+                return <span style={{ background: sc.bg, color: sc.c, padding: '2px 8px', borderRadius: 20, fontSize: 9, fontWeight: 700 }}>{b.bill_status}</span>;
+              }},
+            ]}
+          />
         </Modal>
       )}
     </div>

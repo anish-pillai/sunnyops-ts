@@ -10,19 +10,20 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ADMIN_EMAIL } from '@/config/constants';
 import { hasPerm } from '@/config/roles';
 import { colors, fonts } from '@/styles/tokens';
+import logoImg from '@/assets/logo.png';
 
-const DashboardTab   = React.lazy(() => import('@/modules/dashboard/DashboardTab').then(m => ({ default: m.DashboardTab })));
-const InventoryTab   = React.lazy(() => import('@/modules/inventory/InventoryTab').then(m => ({ default: m.InventoryTab })));
-const StoreTab       = React.lazy(() => import('@/modules/store/StoreTab').then(m => ({ default: m.StoreTab })));
-const BillsTab       = React.lazy(() => import('@/modules/bills/BillsTab').then(m => ({ default: m.BillsTab })));
-const HRTab          = React.lazy(() => import('@/modules/hr/HRTab').then(m => ({ default: m.HRTab })));
-const SettingsTab    = React.lazy(() => import('@/modules/settings/SettingsTab').then(m => ({ default: m.SettingsTab })));
-const PayablesTab    = React.lazy(() => import('@/modules/payables/PayablesTab').then(m => ({ default: m.PayablesTab })));
-const ChallansTab    = React.lazy(() => import('@/modules/challans/ChallansTab').then(m => ({ default: m.ChallansTab })));
+const DashboardTab = React.lazy(() => import('@/modules/dashboard/DashboardTab').then(m => ({ default: m.DashboardTab })));
+const InventoryTab = React.lazy(() => import('@/modules/inventory/InventoryTab').then(m => ({ default: m.InventoryTab })));
+const StoreTab = React.lazy(() => import('@/modules/store/StoreTab').then(m => ({ default: m.StoreTab })));
+const BillsTab = React.lazy(() => import('@/modules/bills/BillsTab').then(m => ({ default: m.BillsTab })));
+const HRTab = React.lazy(() => import('@/modules/hr/HRTab').then(m => ({ default: m.HRTab })));
+const SettingsTab = React.lazy(() => import('@/modules/settings/SettingsTab').then(m => ({ default: m.SettingsTab })));
+const PayablesTab = React.lazy(() => import('@/modules/payables/PayablesTab').then(m => ({ default: m.PayablesTab })));
+const ChallansTab = React.lazy(() => import('@/modules/challans/ChallansTab').then(m => ({ default: m.ChallansTab })));
 const SiteRequestsTab = React.lazy(() => import('@/modules/requests/SiteRequestsTab').then(m => ({ default: m.SiteRequestsTab })));
 const ProcurementTab = React.lazy(() => import('@/modules/procurement/ProcurementTab').then(m => ({ default: m.ProcurementTab })));
-const LogsTab        = React.lazy(() => import('@/modules/logs/LogsTab').then(m => ({ default: m.LogsTab })));
-const ActivityTab    = React.lazy(() => import('@/modules/activity/ActivityTab').then(m => ({ default: m.ActivityTab })));
+const LogsTab = React.lazy(() => import('@/modules/logs/LogsTab').then(m => ({ default: m.LogsTab })));
+const ActivityTab = React.lazy(() => import('@/modules/activity/ActivityTab').then(m => ({ default: m.ActivityTab })));
 
 interface ToastState { msg: string; type?: 'ok' | 'err' }
 
@@ -32,7 +33,7 @@ export const App: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const isAdmin = auth.user?.email === ADMIN_EMAIL || auth.userRole === 'admin';
-  const isMD    = auth.userRole === 'managing-director';
+  const isMD = auth.userRole === 'managing-director';
 
   const getPerm = useCallback((perm: string): boolean => {
     if (isAdmin) return true;
@@ -47,18 +48,18 @@ export const App: React.FC = () => {
   useRealtime(['bills', 'payables', 'site_requests', 'challans', 'store_items', 'purchase_orders'], refresh);
 
   const TABS: TabDef[] = [];
-  if (isAdmin || getPerm('dashboard'))    TABS.push({ key: 'dashboard',   label: 'Dashboard',  icon: '📊' });
-  if (isAdmin || getPerm('inventory'))    TABS.push({ key: 'inventory',   label: 'Inventory',  icon: '📦' });
-  if (isAdmin || getPerm('store'))        TABS.push({ key: 'store',       label: 'Store',      icon: '🏪' });
-  if (isAdmin || getPerm('challans'))     TABS.push({ key: 'challans',    label: 'Challans',   icon: '📄' });
-  if (isAdmin || getPerm('bills'))        TABS.push({ key: 'bills',       label: 'Bills',      icon: '📋' });
-  if (isAdmin || getPerm('payables'))     TABS.push({ key: 'payables',    label: 'Payables',   icon: '💸' });
-  if (isAdmin || getPerm('requests'))     TABS.push({ key: 'requests',    label: 'Requests',   icon: '🔄' });
-  if (isAdmin || getPerm('logs'))         TABS.push({ key: 'logs',        label: 'Stock Logs', icon: '📋' });
-  if (isAdmin)                            TABS.push({ key: 'activity',    label: 'Activity',   icon: '👥' });
-  if (isAdmin || getPerm('procurement'))  TABS.push({ key: 'procurement', label: 'Procure',    icon: '🛒' });
-  if (isAdmin || getPerm('hr_letters'))   TABS.push({ key: 'hr',          label: 'HR',         icon: '👥' });
-  if (isAdmin)                            TABS.push({ key: 'settings',    label: 'Settings',   icon: '⚙️' });
+  if (isAdmin || getPerm('dashboard')) TABS.push({ key: 'dashboard', label: 'Dashboard', icon: '📊' });
+  if (isAdmin || getPerm('inventory')) TABS.push({ key: 'inventory', label: 'Inventory', icon: '📦' });
+  if (isAdmin || getPerm('store')) TABS.push({ key: 'store', label: 'Store', icon: '🏪' });
+  if (isAdmin || getPerm('challans')) TABS.push({ key: 'challans', label: 'Challans', icon: '📄' });
+  if (isAdmin || getPerm('bills')) TABS.push({ key: 'bills', label: 'Bills', icon: '📋' });
+  if (isAdmin || getPerm('payables')) TABS.push({ key: 'payables', label: 'Payables', icon: '💸' });
+  if (isAdmin || getPerm('requests')) TABS.push({ key: 'requests', label: 'Requests', icon: '🔄' });
+  if (isAdmin || getPerm('logs')) TABS.push({ key: 'logs', label: 'Stock Logs', icon: '📋' });
+  if (isAdmin) TABS.push({ key: 'activity', label: 'Activity', icon: '👥' });
+  if (isAdmin || getPerm('procurement')) TABS.push({ key: 'procurement', label: 'Procure', icon: '🛒' });
+  if (isAdmin || getPerm('hr_letters')) TABS.push({ key: 'hr', label: 'HR', icon: '👥' });
+  if (isAdmin) TABS.push({ key: 'settings', label: 'Settings', icon: '⚙️' });
 
   if (auth.loading) {
     return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></div>;
@@ -73,10 +74,15 @@ export const App: React.FC = () => {
   return (
     <div style={{ minHeight: '100vh', background: colors.pageBg }}>
       {/* Header */}
-      <div style={{ background: colors.headerBg, color: colors.surface, padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div>
-          <div style={{ fontFamily: fonts.mono, fontWeight: 700, fontSize: 16, color: colors.brand }}>SUNNY OPS</div>
-          <div style={{ fontSize: 9, color: colors.textOnDark, letterSpacing: 2, fontFamily: fonts.mono }}>OPERATIONS & FINANCE</div>
+      <div style={{ color: colors.surface, padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <img src={logoImg} alt="Sunny OPS" style={{ width: 48, height: 48, objectFit: 'contain' }} />
+          <div>
+            <div style={{ fontFamily: fonts.mono, fontWeight: 800, fontSize: 18, color: colors.slate900, letterSpacing: -0.5, lineHeight: 1.1 }}>SUNNY OPS</div>
+            <div style={{ fontSize: 9, color: colors.textOnDark, letterSpacing: 1.5, fontFamily: fonts.mono, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>OPERATIONS & FINANCE MANAGEMENT</span>
+            </div>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 30, height: 30, background: isMD ? colors.indigo : colors.brand, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: colors.surface, fontWeight: 700 }}>
@@ -93,7 +99,7 @@ export const App: React.FC = () => {
           <button onClick={auth.signOut} style={{ background: colors.slate800, border: `1px solid ${colors.slate700}`, color: colors.textOnDark, borderRadius: 6, padding: '5px 12px', fontSize: 10, cursor: 'pointer', fontFamily: fonts.mono, fontWeight: 700, letterSpacing: 1 }}>Sign Out</button>
         </div>
       </div>
-      
+
       {/* Top nav */}
       <TopNav tabs={TABS} />
 

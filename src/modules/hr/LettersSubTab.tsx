@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
+import { DataTable, Column } from '@/components/ui/DataTable';
 import { FIRMS } from '@/config/constants';
 import type { Letter, OfferLetterData, LetterType } from '@/types/hr.types';
 
@@ -218,66 +219,95 @@ export const LettersSubTab: React.FC<LettersSubTabProps> = ({
 
   if (loading && letters.length === 0) return <Spinner />;
 
+  const columns: Column<Letter>[] = [
+    {
+      header: 'Ref No / Type',
+      width: 180,
+      render: (lt) => {
+        const isOFR = lt.type === 'OFR';
+        const sc = LET_COLORS[lt.status] || LET_COLORS.Draft;
+        return (
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: '#0f172a', fontFamily: 'IBM Plex Mono, monospace' }}>{lt.ref_no}</div>
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              <span style={{ fontSize: 9, background: isOFR ? '#f0fdf4' : '#eff6ff', color: isOFR ? '#16a34a' : '#0369a1', border: `1px solid ${isOFR ? '#bbf7d0' : '#bfdbfe'}`, borderRadius: 4, padding: '1px 6px', fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace' }}>{isOFR ? 'OFR' : 'LET'}</span>
+              <span style={{ background: sc.bg, color: sc.c, border: `1px solid ${sc.br}`, borderRadius: 4, padding: '1px 6px', fontSize: 9, fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace' }}>{lt.status.toUpperCase()}</span>
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      header: 'Date',
+      width: 100,
+      render: (lt) => <span style={{ fontSize: 11, color: '#64748b' }}>{lt.created_at ? new Date(lt.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</span>
+    },
+    {
+      header: 'Recipient / Subject',
+      render: (lt) => {
+        const isOFR = lt.type === 'OFR';
+        return (
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{isOFR ? (lt.to_name || '?') : (lt.subject || '?')}</div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+              {!isOFR && lt.to_name ? lt.to_name + (lt.to_company ? ', ' : '') : ''}
+              {lt.to_company || ''}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      header: 'Site',
+      width: 100,
+      render: (lt) => lt.site ? <span style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 700, color: '#475569' }}>{lt.site}</span> : '-'
+    },
+    {
+      header: 'Actions',
+      width: 180,
+      align: 'right',
+      render: (lt) => (
+        <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
+          <button onClick={e => { e.stopPropagation(); printLetter(lt); }} style={{ fontSize: 10, padding: '4px 10px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>🖨 Print</button>
+          {isAdmin && <button onClick={e => { e.stopPropagation(); setModal({ type: 'edit', letter: lt }); }} style={{ fontSize: 10, padding: '4px 10px', background: '#6d28d9', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>✏ Edit</button>}
+          {isAdmin && lt.status !== 'Issued' && (
+            <button onClick={async e => { e.stopPropagation(); const err = await onMarkIssued(lt.id, uName); if (err) showToast(err, 'err'); else { showToast('Marked Issued'); onRefresh(); } }}
+              style={{ fontSize: 10, padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>✓ Issue</button>
+          )}
+        </div>
+      )
+    }
+  ];
+
   return (
     <div style={{ padding: '16px 0' }}>
       {/* Header with filters and buttons */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setFType('All')} style={{ fontSize: 10, padding: '4px 12px', borderRadius: 20, border: '1px solid #e2e8f0', background: fType === 'All' ? '#0f172a' : '#fff', color: fType === 'All' ? '#fff' : '#64748b', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>All ({letters.length})</button>
-          <button onClick={() => setFType('LET')} style={{ fontSize: 10, padding: '4px 12px', borderRadius: 20, border: '1px solid #e2e8f0', background: fType === 'LET' ? '#0f172a' : '#fff', color: fType === 'LET' ? '#fff' : '#64748b', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>Letter ({letters.filter(l => l.type === 'LET').length})</button>
+          <button onClick={() => setFType('All')} style={{ fontSize: 10, padding: '6px 14px', borderRadius: 20, border: `1px solid ${fType === 'All' ? '#0f172a' : '#e2e8f0'}`, background: fType === 'All' ? '#0f172a' : '#fff', color: fType === 'All' ? '#fff' : '#64748b', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>ALL ({letters.length})</button>
+          <button onClick={() => setFType('LET')} style={{ fontSize: 10, padding: '6px 14px', borderRadius: 20, border: `1px solid ${fType === 'LET' ? '#0f172a' : '#e2e8f0'}`, background: fType === 'LET' ? '#0f172a' : '#fff', color: fType === 'LET' ? '#fff' : '#64748b', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>LETTERS ({letters.filter(l => l.type === 'LET').length})</button>
           {canOfferLetter && (
-            <button onClick={() => setFType('OFR')} style={{ fontSize: 10, padding: '4px 12px', borderRadius: 20, border: '1px solid #e2e8f0', background: fType === 'OFR' ? '#0f172a' : '#fff', color: fType === 'OFR' ? '#fff' : '#64748b', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>Offer Letter ({letters.filter(l => l.type === 'OFR').length})</button>
+            <button onClick={() => setFType('OFR')} style={{ fontSize: 10, padding: '6px 14px', borderRadius: 20, border: `1px solid ${fType === 'OFR' ? '#0f172a' : '#e2e8f0'}`, background: fType === 'OFR' ? '#0f172a' : '#fff', color: fType === 'OFR' ? '#fff' : '#64748b', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>OFFER ({letters.filter(l => l.type === 'OFR').length})</button>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 11, padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontFamily: 'IBM Plex Mono, monospace' }} />
-          <button onClick={() => setModal({ type: 'new', letType: 'LET' })} style={{ background: '#0369a1', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, fontWeight: 700 }}>＋ Letter</button>
+          <input placeholder="Search ref, name, subject..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontFamily: 'IBM Plex Mono, monospace', minWidth: 240 }} />
+          <button onClick={() => setModal({ type: 'new', letType: 'LET' })} style={{ background: '#0369a1', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 700 }}>＋ Letter</button>
           {canOfferLetter && (
-            <button onClick={() => setModal({ type: 'new', letType: 'OFR' })} style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, fontWeight: 700 }}>＋ Offer Letter</button>
+            <button onClick={() => setModal({ type: 'new', letType: 'OFR' })} style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 700 }}>＋ Offer Letter</button>
           )}
         </div>
       </div>
 
-      {/* Letters list */}
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 13, background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0' }}>No letters yet.</div>
-      ) : (
-        <div style={{ display: 'grid', gap: 10 }}>
-          {filtered.map(lt => {
-            const sc = LET_COLORS[lt.status] || LET_COLORS.Draft;
-            const isOFR = lt.type === 'OFR';
-            return (
-              <div key={lt.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '16px 20px', borderLeft: `4px solid ${isOFR ? '#16a34a' : '#0369a1'}`, cursor: 'pointer' }}
-                onClick={e => { if ((e.target as HTMLElement).tagName !== 'BUTTON') printLetter(lt); }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 800, fontSize: 15, color: '#0f172a', fontFamily: 'IBM Plex Mono, monospace' }}>{lt.ref_no}</span>
-                      <span style={{ fontSize: 10, background: isOFR ? '#f0fdf4' : '#eff6ff', color: isOFR ? '#16a34a' : '#0369a1', border: `1px solid ${isOFR ? '#bbf7d0' : '#bfdbfe'}`, borderRadius: 4, padding: '2px 8px', fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace' }}>{isOFR ? 'Offer Letter' : 'Letter'}</span>
-                      <span style={{ background: sc.bg, color: sc.c, border: `1px solid ${sc.br}`, borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace' }}>{lt.status}</span>
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>{isOFR ? (lt.to_name || '?') : (lt.subject || '?')}</div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>
-                      {!isOFR && lt.to_name ? lt.to_name + (lt.to_company ? ', ' : '') : ''}
-                      {lt.to_company || ''}
-                      {lt.site ? ` | ${lt.site}` : ''}
-                      {lt.created_at ? ` | ${new Date(lt.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 5, marginTop: 10 }}>
-                  <button onClick={e => { e.stopPropagation(); printLetter(lt); }} style={{ fontSize: 10, padding: '4px 10px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>🖨 Print</button>
-                  {isAdmin && <button onClick={e => { e.stopPropagation(); setModal({ type: 'edit', letter: lt }); }} style={{ fontSize: 10, padding: '4px 10px', background: '#6d28d9', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>✏ Edit</button>}
-                  {isAdmin && lt.status !== 'Issued' && (
-                    <button onClick={async e => { e.stopPropagation(); const err = await onMarkIssued(lt.id, uName); if (err) showToast(err, 'err'); else { showToast('Marked Issued'); onRefresh(); } }}
-                      style={{ fontSize: 10, padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>✓ Mark Issued</button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <DataTable<Letter>
+        columns={columns}
+        data={filtered}
+        loading={loading && letters.length === 0}
+        emptyMessage="No letters found."
+        onRowClick={(lt) => printLetter(lt)}
+        rowStyle={(lt) => ({ borderLeft: `4px solid ${lt.type === 'OFR' ? '#16a34a' : '#0369a1'}` })}
+        initialPageSize={20}
+      />
 
       {/* Modal */}
       {modal && (

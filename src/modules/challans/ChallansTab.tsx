@@ -3,6 +3,7 @@ import { useChallans } from '@/hooks/useChallans';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { Modal } from '@/components/ui/Modal';
+import { DataTable, Column } from '@/components/ui/DataTable';
 import { fmtDate } from '@/utils/formatters';
 import type { Challan } from '@/types/challan.types';
 import { DEFAULT_SITE_DETAILS } from '@/config/constants';
@@ -123,6 +124,75 @@ export const ChallansTab: React.FC<Props> = ({ isAdmin, showToast }) => {
 
   if (loading) return <Spinner />;
 
+  const columns: Column<Challan>[] = [
+    { 
+      header: 'Challan No.', 
+      width: 120,
+      render: (c) => <span style={{ fontWeight: 700, color: '#ea580c', fontFamily: 'IBM Plex Mono, monospace', fontSize: 13 }}>{c.challan_no}</span> 
+    },
+    { 
+      header: 'Date', 
+      width: 100,
+      render: (c) => <span style={{ fontSize: 12, color: '#64748b' }}>{fmtDate(c.date || c.created_at)}</span> 
+    },
+    { 
+      header: 'Item Details', 
+      render: (c) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: 13 }}>{c.item_name}</div>
+          {c.item_alias && <div style={{ color: '#ea580c', fontSize: 11, fontWeight: 700 }}>({c.item_alias})</div>}
+          {c.remarks && <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', marginTop: 2 }}>"{c.remarks}"</div>}
+        </div>
+      )
+    },
+    { 
+      header: 'Qty', 
+      width: 80,
+      render: (c) => <span style={{ fontWeight: 700, color: '#0f172a' }}>{c.qty} {c.unit || 'Nos'}</span> 
+    },
+    { 
+      header: 'From Site', 
+      render: (c) => <span style={{ color: '#64748b', fontSize: 12 }}>{c.from_site}</span> 
+    },
+    { 
+      header: 'To Site', 
+      render: (c) => <span style={{ color: '#0f172a', fontWeight: 600, fontSize: 12 }}>{c.to_site}</span> 
+    },
+    {
+      header: 'Actions',
+      width: 220,
+      render: (c) => (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Button 
+            onClick={() => setEwbModal(c)} 
+            style={{ 
+              fontSize: 10, 
+              padding: '4px 8px', 
+              background: c.ewb_no ? '#16a34a' : '#f0fdf4', 
+              color: c.ewb_no ? '#fff' : '#16a34a',
+              border: `1px solid ${c.ewb_no ? '#16a34a' : '#bbf7d0'}`,
+              fontWeight: 700,
+              fontFamily: 'IBM Plex Mono, monospace',
+              minWidth: 80
+            }}
+          >
+            {c.ewb_no ? `📋 ${c.ewb_no.slice(-4)}` : 'E-Way Bill'}
+          </Button>
+          <Button variant="info" onClick={() => printChallan(c)} style={{ fontSize: 10, padding: '4px 8px' }}>Print</Button>
+          {isAdmin && (
+            <Button variant="ghost" onClick={async () => {
+              if (window.confirm(`Delete Challan ${c.challan_no}?`)) {
+                const err = await remove(c.id);
+                if (err) showToast?.(err, 'err');
+                else showToast?.('Challan deleted', 'ok');
+              }
+            }} style={{ fontSize: 10, padding: '4px 8px', color: '#dc2626' }}>🗑 Delete</Button>
+          )}
+        </div>
+      )
+    }
+  ];
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -130,7 +200,7 @@ export const ChallansTab: React.FC<Props> = ({ isAdmin, showToast }) => {
           value={search} 
           onChange={e => setSearch(e.target.value)} 
           placeholder="Search challans..." 
-          style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 13, minWidth: 260 }}
+          style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, minWidth: 260 }}
         />
         <Button variant="ghost" onClick={() => {
           let html = "<table><tr><th>#</th><th>Challan No.</th><th>Item</th><th>Qty</th><th>Unit</th><th>From</th><th>To</th><th>Purpose</th><th>Date</th><th>By</th></tr>";
@@ -143,63 +213,16 @@ export const ChallansTab: React.FC<Props> = ({ isAdmin, showToast }) => {
             w.document.close();
             setTimeout(() => w.print(), 500);
           }
-        }} style={{ fontSize: 11 }}>⬇ PDF</Button>
+        }} style={{ fontSize: 11 }}>⬇ PDF Register</Button>
       </div>
 
-      {filtered.length === 0 && (
-        <div style={{ textAlign: "center", padding: 60, color: "#94a3b8", background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0" }}>No challans found</div>
-      )}
-
-      <div style={{ display: 'grid', gap: 10 }}>
-        {filtered.map(c => (
-          <div key={c.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '16px 20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 700, color: '#ea580c', fontSize: 13, fontFamily: 'IBM Plex Mono, monospace' }}>{c.challan_no}</span>
-                  <span style={{ fontSize: 13, color: '#0f172a', fontWeight: 600 }}>
-                    {c.item_name}
-                    {c.item_alias && <span style={{ color: '#ea580c', fontSize: 11, marginLeft: 6, fontWeight: 700 }}>({c.item_alias})</span>}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
-                  <span>{c.from_site} → {c.to_site}</span>
-                  <span>Qty: <b style={{ color: '#0f172a' }}>{c.qty} {c.unit || 'Nos'}</b></span>
-                  <span>{fmtDate(c.date || c.created_at)}</span>
-                  <span>By: {c.issued_by_name || c.created_by_name || '-'}</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Button 
-                  onClick={() => setEwbModal(c)} 
-                  style={{ 
-                    fontSize: 10, 
-                    padding: '4px 10px', 
-                    background: c.ewb_no ? '#16a34a' : '#f0fdf4', 
-                    color: c.ewb_no ? '#fff' : '#16a34a',
-                    border: `1px solid ${c.ewb_no ? '#16a34a' : '#bbf7d0'}`,
-                    fontWeight: 700,
-                    fontFamily: 'IBM Plex Mono, monospace'
-                  }}
-                >
-                  {c.ewb_no ? `📋 EWB: ${c.ewb_no.slice(-4)}` : 'E-Way Bill'}
-                </Button>
-                <Button variant="info" onClick={() => printChallan(c)} style={{ fontSize: 10, padding: '4px 10px' }}>Print</Button>
-                {isAdmin && (
-                  <Button variant="ghost" onClick={async () => {
-                    if (window.confirm(`Delete Challan ${c.challan_no}?`)) {
-                      const err = await remove(c.id);
-                      if (err) showToast?.(err, 'err');
-                      else showToast?.('Challan deleted', 'ok');
-                    }
-                  }} style={{ fontSize: 10, padding: '4px 10px', color: '#dc2626' }}>🗑 Delete</Button>
-                )}
-              </div>
-            </div>
-            {c.remarks && <div style={{ marginTop: 10, fontSize: 12, color: '#475569', fontStyle: 'italic' }}>"{c.remarks}"</div>}
-          </div>
-        ))}
-      </div>
+      <DataTable<Challan>
+        columns={columns}
+        data={filtered}
+        loading={loading}
+        emptyMessage="No challans found."
+        initialPageSize={20}
+      />
 
       {ewbModal && (
         <Modal title={`📦 E-Way Bill — ${ewbModal.challan_no}`} onClose={() => setEwbModal(null)} wide>

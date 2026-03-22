@@ -21,7 +21,7 @@ export const TopNav: React.FC<TopNavProps> = ({ tabs }) => {
 
   return (
     <div style={{ background: colors.surface, borderBottom: `1px solid ${colors.border}`, overflowX: 'auto' }}>
-      <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', gap: 2, padding: '8px 20px', background: colors.slate100 }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', gap: 2, padding: '8px 20px' }}>
         {tabs.map(({ key, label }) => (
           <button
             key={key}

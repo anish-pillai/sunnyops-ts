@@ -3,6 +3,7 @@ import { useStore } from '@/hooks/useStore';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
+import { DataTable } from '@/components/ui/DataTable';
 import { fmtINR, fmtDate } from '@/utils/formatters';
 import { GRNEntryForm } from './components/GRNEntryForm';
 
@@ -141,81 +142,55 @@ export const StoreTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
             </div>
           </div>
 
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#f8fafc' }}>
-                  {['Item', 'Category', 'Site', 'In Store', 'Unit Cost', 'Value', 'Status'].map(h => (
-                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, color: '#64748b', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: 1, borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(item => {
-                  const low = item.effectiveQty <= item.min_qty;
-                  return (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 14px', fontWeight: 700 }}>{item.name}</td>
-                      <td style={{ padding: '12px 14px', color: '#64748b' }}>{item.category}</td>
-                      <td style={{ padding: '12px 14px' }}><span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 4, padding: '2px 8px', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{item.site}</span></td>
-                      <td style={{ padding: '12px 14px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 800, color: item.isDataGap ? '#dc2626' : low ? '#d97706' : '#0f172a' }}>
-                        {Math.max(0, item.effectiveQty)} <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: 10 }}>{item.unit}</span>
-                        {item.isDataGap && (
-                          <div style={{ fontSize: 9, color: '#dc2626', fontWeight: 500 }}>⚠ issued out (check GRN qty)</div>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px 14px', fontFamily: 'IBM Plex Mono, monospace' }}>{fmtINR(item.unit_cost)}</td>
-                      <td style={{ padding: '12px 14px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{fmtINR(Math.max(0, item.effectiveQty) * item.unit_cost)}</td>
-                      <td style={{ padding: '12px 14px' }}>
-                        {item.isDataGap && <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700 }}>DATA GAP</span>}
-                        {!item.isDataGap && low && <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700 }}>LOW</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={[
+              { header: 'Item', render: (item: any) => <span style={{ fontWeight: 700 }}>{item.name}</span> },
+              { header: 'Category', key: 'category' },
+              { header: 'Site', render: (item: any) => <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 4, padding: '2px 8px', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{item.site}</span> },
+              { header: 'In Store', render: (item: any) => {
+                const low = item.effectiveQty <= item.min_qty;
+                return (
+                  <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 800, color: item.isDataGap ? '#dc2626' : low ? '#d97706' : '#0f172a' }}>
+                    {Math.max(0, item.effectiveQty)} <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: 10 }}>{item.unit}</span>
+                    {item.isDataGap && <div style={{ fontSize: 9, color: '#dc2626', fontWeight: 500 }}>⚠ issued out (check GRN qty)</div>}
+                  </div>
+                );
+              }, align: 'right' as const },
+              { header: 'Unit Cost', render: (item: any) => <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{fmtINR(item.unit_cost)}</span>, align: 'right' as const },
+              { header: 'Value', render: (item: any) => <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{fmtINR(Math.max(0, item.effectiveQty) * item.unit_cost)}</span>, align: 'right' as const },
+              { header: 'Status', render: (item: any) => (
+                <>
+                  {item.isDataGap && <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700 }}>DATA GAP</span>}
+                  {!item.isDataGap && item.effectiveQty <= item.min_qty && <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700 }}>LOW</span>}
+                </>
+              )},
+            ]}
+            data={filtered}
+            emptyMessage="No store items found"
+            initialPageSize={25}
+            pageSizeOptions={[10, 25, 50, 100]}
+          />
         </>
       )}
 
       {view === 'history' && (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ background: '#f8fafc' }}>
-                {['Item', 'Site', 'Qty', 'Work Order', 'Issued To', 'Type', 'Purpose', 'Date', 'Issued By'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, color: '#64748b', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: 1, borderBottom: '1px solid #e2e8f0' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredIssues.length === 0
-                ? <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#94a3b8' }}>No issues recorded</td></tr>
-                : filteredIssues.map(issue => (
-                  <tr key={issue.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 700 }}>{issue.item_name}</td>
-                    <td style={{ padding: '12px 14px' }}><span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 4, padding: '2px 8px', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{issue.site}</span></td>
-                    <td style={{ padding: '12px 14px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{issue.qty}</td>
-                    <td style={{ padding: '12px 14px', color: '#475569', fontSize: 11 }}>{issue.work_order || '—'}</td>
-                    <td style={{ padding: '12px 14px', color: '#475569' }}>{issue.issued_to}</td>
-                    <td style={{ padding: '12px 14px' }}>
-                      {issue.type && (
-                        <span style={{
-                          background: issue.type === 'Return' ? '#f0fdf4' : issue.type === 'Transfer' ? '#eff6ff' : '#f8fafc',
-                          color: issue.type === 'Return' ? '#16a34a' : issue.type === 'Transfer' ? '#1d4ed8' : '#475569',
-                          borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700,
-                        }}>{issue.type}</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 14px', color: '#64748b' }}>{issue.purpose ?? '—'}</td>
-                    <td style={{ padding: '12px 14px', color: '#64748b', whiteSpace: 'nowrap' }}>{fmtDate(issue.issued_at)}</td>
-                    <td style={{ padding: '12px 14px', color: '#64748b' }}>{issue.issued_by}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={[
+            { header: 'Item', render: (issue: any) => <span style={{ fontWeight: 700 }}>{issue.item_name}</span> },
+            { header: 'Site', render: (issue: any) => <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 4, padding: '2px 8px', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{issue.site}</span> },
+            { header: 'Qty', render: (issue: any) => <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{issue.qty}</span>, align: 'right' as const },
+            { header: 'Work Order', render: (issue: any) => <span style={{ color: '#475569', fontSize: 11 }}>{issue.work_order || '—'}</span> },
+            { header: 'Issued To', key: 'issued_to' },
+            { header: 'Type', render: (issue: any) => issue.type ? <span style={{ background: issue.type === 'Return' ? '#f0fdf4' : issue.type === 'Transfer' ? '#eff6ff' : '#f8fafc', color: issue.type === 'Return' ? '#16a34a' : issue.type === 'Transfer' ? '#1d4ed8' : '#475569', borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700 }}>{issue.type}</span> : null },
+            { header: 'Purpose', render: (issue: any) => <span style={{ color: '#64748b' }}>{issue.purpose ?? '—'}</span> },
+            { header: 'Date', render: (issue: any) => <span style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{fmtDate(issue.issued_at)}</span> },
+            { header: 'Issued By', key: 'issued_by' },
+          ]}
+          data={filteredIssues}
+          emptyMessage="No issues recorded"
+          initialPageSize={25}
+          pageSizeOptions={[10, 25, 50, 100]}
+        />
       )}
 
       {view === 'activity' && (

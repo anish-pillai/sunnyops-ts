@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
+import { DataTable } from '@/components/ui/DataTable';
 import type { WorkOrder, Bill } from '@/types/bill.types';
 import { fmtINR, fmtDate } from '@/utils/formatters';
 
@@ -311,95 +312,116 @@ export const WorkOrdersTab: React.FC<Props> = ({
           <div style={{ fontSize: 12 }}>{isAdmin ? "Click + Add Work Order to register WO values." : "Ask Admin to register Work Order values."}</div>
         </div>
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr>{['WO Number', 'Start', 'End Date', 'Site', 'Description', 'Total WO Value', 'Billed', 'Balance', 'Bills', '% Used', ''].map(h =>
-                  <th key={h} style={{ padding: '8px 12px', background: '#0f172a', color: '#fff', textAlign: 'left', fontSize: 10, fontWeight: 700, letterSpacing: 0.5, whiteSpace: 'nowrap' }}>{h}</th>
-                )}</tr>
-              </thead>
-              <tbody>
-                {filtered.map((fam, i) => {
-                  const isSelected = selected && selected._rootKey === fam._rootKey;
-                  const pct = fam._pct;
-                  const rows: React.ReactNode[] = [];
-
-                  // Main row
-                  rows.push(
-                    <tr key={fam._rootKey} style={{ borderBottom: '1px solid #f1f5f9', background: isSelected ? '#eff6ff' : i % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}
-                      onClick={() => setSelected(isSelected ? null : fam)}>
-                      <td style={{ padding: '10px 12px', fontWeight: 700, color: '#f97316', fontFamily: 'IBM Plex Mono, monospace', whiteSpace: 'nowrap' }}>
-                        {fam.wo_no}
-                        {fam._hasAmendments && <span style={{ marginLeft: 4, background: '#fef9c3', border: '1px solid #fde047', color: '#92400e', borderRadius: 20, padding: '1px 5px', fontSize: 9, fontWeight: 700 }}>{fam._members.length - 1} amdt</span>}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 11, color: '#64748b' }}>{fam.start_date ? fmtDate(fam.start_date) : '--'}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 11, color: '#64748b' }}>{fam._latestEnd ? fmtDate(fam._latestEnd) : '--'}</td>
-                      <td style={{ padding: '10px 12px' }}>
-                        {fam.site ? <span style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#ea580c', borderRadius: 20, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>{fam.site}</span> : '-'}
-                      </td>
-                      <td style={{ padding: '10px 12px', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#475569' }}>{fam.description || '-'}</td>
-                      <td style={{ padding: '10px 12px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>₹{fmt(fam._totalWoValue)}</td>
-                      <td style={{ padding: '10px 12px', fontFamily: 'IBM Plex Mono, monospace', color: '#f97316', fontWeight: 600 }}>₹{fmt(fam._totalBilled)}</td>
-                      <td style={{ padding: '10px 12px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, color: fam._balance < 0 ? '#dc2626' : '#16a34a' }}>₹{fmt(fam._balance)}</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                        <span style={{ background: '#eff6ff', color: '#1d4ed8', borderRadius: 20, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>{fam._billCount}</span>
-                      </td>
-                      <td style={{ padding: '10px 12px', minWidth: 90 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <div style={{ flex: 1, background: '#e2e8f0', borderRadius: 99, height: 5, overflow: 'hidden' }}>
-                            <div style={{ width: pct + '%', height: '100%', background: pct > 90 ? '#dc2626' : pct > 70 ? '#f97316' : '#16a34a', borderRadius: 99 }} />
-                          </div>
-                          <span style={{ fontSize: 10, color: '#64748b', minWidth: 28 }}>{pct.toFixed(0)}%</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
-                        {isAdmin && <button onClick={() => startAmendment(fam)} style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#d97706', borderRadius: 5, padding: '3px 7px', cursor: 'pointer', fontSize: 10, fontWeight: 700, marginRight: 4 }}>+Amdt</button>}
-                        {isAdmin && <button onClick={() => { if (window.confirm('Delete all WOs in this family (' + fam._members.length + ' records)?')) fam._members.forEach(m => onDelete(m.id)); }}
-                          style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 12 }}>✕</button>}
-                      </td>
-                    </tr>
-                  );
-
-                  // Amendment sub-rows
-                  if (isSelected && fam._hasAmendments) {
-                    fam._members.forEach((m, mi) => {
-                      const mBilled = bills.filter(b => b.wo_no && b.wo_no.trim().toLowerCase() === m.wo_no.trim().toLowerCase() && b.bill_status !== 'CANCELLED')
-                        .reduce((s, b) => s + parseFloat(String(b.amount_with_gst || b.amount || 0)), 0);
-                      rows.push(
-                        <tr key={'a-' + m.id} style={{ background: '#fefce8', borderBottom: '1px solid #fef9c3' }}>
-                          <td style={{ padding: '6px 12px 6px 24px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 700, color: mi === 0 ? '#0f172a' : '#d97706' }}>
-                            <span style={{ fontSize: 9, color: '#94a3b8', marginRight: 4 }}>{mi === 0 ? 'ROOT' : 'AMD' + m.amendment_no}</span> {m.wo_no}
-                          </td>
-                          <td style={{ padding: '6px 12px', fontSize: 11, color: '#64748b' }}>{m.start_date ? fmtDate(m.start_date) : '--'}</td>
-                          <td style={{ padding: '6px 12px', fontSize: 11, color: '#64748b' }}>{m.end_date ? fmtDate(m.end_date) : '--'}</td>
-                          <td></td>
-                          <td style={{ padding: '6px 12px', fontSize: 11, color: '#475569' }}>{m.description || '--'}</td>
-                          <td style={{ padding: '6px 12px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: '#64748b' }}>₹{fmt(m.wo_value)}{mi > 0 ? ' (+)' : ''}</td>
-                          <td style={{ padding: '6px 12px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: '#f97316' }}>₹{fmt(mBilled)}</td>
-                          <td colSpan={3}></td>
-                          <td style={{ padding: '6px 10px' }} onClick={e => e.stopPropagation()}>
-                            {isAdmin && <button onClick={() => { if (window.confirm('Delete ' + m.wo_no + '?')) onDelete(m.id); }} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 11 }}>✕</button>}
-                          </td>
-                        </tr>
-                      );
-                    });
-                  }
-                  return rows;
-                })}
-
-                {/* Extra WO numbers from bills not registered */}
-                {extraWoNos.filter(e => !search || e.wo_no.toLowerCase().includes(search.toLowerCase())).map(e => (
-                  <tr key={'extra-' + e.key} style={{ borderBottom: '1px solid #f1f5f9', background: '#fffbeb', opacity: 0.8 }}>
-                    <td style={{ padding: '10px 12px', fontFamily: 'IBM Plex Mono, monospace', color: '#d97706' }}>{e.wo_no}</td>
-                    <td colSpan={9} style={{ padding: '10px 12px', fontSize: 11, color: '#92400e' }}>⚠️ WO found in bills but not registered — value unknown. Register this WO to track utilisation.</td>
-                    <td></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable<WOFamily | { key: string; wo_no: string; _isExtra: boolean }>
+          columns={[
+            {
+              header: 'WO Number',
+              width: 140,
+              render: (w) => {
+                if ('_isExtra' in w) return <span style={{ fontWeight: 700, color: '#d97706', fontFamily: 'IBM Plex Mono, monospace' }}>{w.wo_no}</span>;
+                return (
+                  <span style={{ fontWeight: 700, color: '#f97316', fontFamily: 'IBM Plex Mono, monospace', whiteSpace: 'nowrap' }}>
+                    {w.wo_no}
+                    {w._hasAmendments && <span style={{ marginLeft: 4, background: '#fef9c3', border: '1px solid #fde047', color: '#92400e', borderRadius: 20, padding: '1px 5px', fontSize: 9, fontWeight: 700 }}>{w._members.length - 1} amdt</span>}
+                  </span>
+                );
+              }
+            },
+            {
+              header: 'Date Range',
+              width: 150,
+              render: (w) => {
+                if ('_isExtra' in w) return null;
+                return <span style={{ fontSize: 11, color: '#64748b' }}>{w.start_date ? fmtDate(w.start_date) : '--'} → {w._latestEnd ? fmtDate(w._latestEnd) : '--'}</span>;
+              }
+            },
+            {
+              header: 'Site',
+              width: 100,
+              render: (w) => {
+                const site = ('site' in w) ? w.site : '';
+                if (!site) return '-';
+                return <span style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#ea580c', borderRadius: 20, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>{site}</span>;
+              }
+            },
+            {
+              header: 'Description',
+              render: (w) => {
+                if ('_isExtra' in w) return <span style={{ fontSize: 11, color: '#92400e' }}>⚠️ WO found in bills but not registered. Register to track.</span>;
+                return <div style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#475569' }}>{w.description || '-'}</div>;
+              }
+            },
+            {
+              header: 'Total Value',
+              width: 110,
+              render: (w) => {
+                if ('_isExtra' in w) return '--';
+                return <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>₹{fmt(w._totalWoValue)}</span>;
+              }
+            },
+            {
+              header: 'Billed',
+              width: 110,
+              render: (w) => {
+                if ('_isExtra' in w) return '--';
+                return <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: '#f97316', fontWeight: 600 }}>₹{fmt(w._totalBilled)}</span>;
+              }
+            },
+            {
+              header: 'Balance',
+              width: 110,
+              render: (w) => {
+                if ('_isExtra' in w) return '--';
+                return <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, color: w._balance < 0 ? '#dc2626' : '#16a34a' }}>₹{fmt(w._balance)}</span>;
+              }
+            },
+            {
+              header: 'Bills',
+              width: 50,
+              render: (w) => {
+                if ('_isExtra' in w) return null;
+                return <span style={{ background: '#eff6ff', color: '#1d4ed8', borderRadius: 20, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>{w._billCount}</span>;
+              }
+            },
+            {
+              header: 'Utilisation',
+              width: 100,
+              render: (w) => {
+                if ('_isExtra' in w) return null;
+                const pct = w._pct;
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ flex: 1, background: '#e2e8f0', borderRadius: 99, height: 5, overflow: 'hidden' }}>
+                      <div style={{ width: pct + '%', height: '100%', background: pct > 90 ? '#dc2626' : pct > 70 ? '#f97316' : '#16a34a', borderRadius: 99 }} />
+                    </div>
+                    <span style={{ fontSize: 10, color: '#64748b', minWidth: 28 }}>{pct.toFixed(0)}%</span>
+                  </div>
+                );
+              }
+            },
+            {
+              header: 'Actions',
+              width: 100,
+              render: (w) => {
+                if ('_isExtra' in w) return null;
+                return (
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {isAdmin && <button onClick={(e) => { e.stopPropagation(); startAmendment(w); }} style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#d97706', borderRadius: 5, padding: '3px 7px', cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>+Amdt</button>}
+                    {isAdmin && <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete all WOs in this family (' + w._members.length + ' records)?')) w._members.forEach(m => onDelete(m.id)); }}
+                      style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 12 }}>✕</button>}
+                  </div>
+                );
+              }
+            }
+          ]}
+          data={[...filtered, ...extraWoNos.filter(e => !search || e.wo_no.toLowerCase().includes(search.toLowerCase())).map(e => ({ ...e, _isExtra: true }))]}
+          onRowClick={(w) => {
+            if ('_isExtra' in w) return;
+            setSelected(selected && selected._rootKey === w._rootKey ? null : w);
+          } }
+          rowStyle={(w) => (!('_isExtra' in w) && selected && selected._rootKey === w._rootKey) ? { background: '#eff6ff' } : {}}
+          initialPageSize={20}
+        />
       )}
 
       {/* ── Selected WO detail panel ────────────────────────────────── */}
@@ -463,34 +485,27 @@ export const WorkOrdersTab: React.FC<Props> = ({
               const woBills = bills.filter(b => b.wo_no && allNos.has(b.wo_no.trim().toLowerCase()));
               if (!woBills.length) return <div style={{ fontSize: 12, color: '#94a3b8', padding: '12px 0' }}>No bills found for this WO family.</div>;
               return (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc' }}>
-                      {['Inv No', 'WO', 'Site', 'Details', 'Amount', 'With GST', 'Status'].map(h =>
-                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 9, color: '#64748b', fontWeight: 700, borderBottom: '1px solid #e2e8f0' }}>{h}</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {woBills.map(b => (
-                      <tr key={b.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '8px 10px', fontWeight: 700, color: '#f97316', fontFamily: 'IBM Plex Mono, monospace' }}>{b.inv_no}</td>
-                        <td style={{ padding: '8px 10px', fontSize: 10, color: '#64748b' }}>{b.wo_no}</td>
-                        <td style={{ padding: '8px 10px', fontSize: 10, color: '#64748b' }}>{b.site}</td>
-                        <td style={{ padding: '8px 10px', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.bill_details}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'IBM Plex Mono, monospace' }}>{fmtINR(b.amount)}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{fmtINR(b.amount_with_gst)}</td>
-                        <td style={{ padding: '8px 10px' }}>
-                          <span style={{ borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700,
-                            background: b.bill_status === 'RECEIVED' ? '#f0fdf4' : b.bill_status === 'CANCELLED' ? '#f1f5f9' : '#fff7ed',
-                            color: b.bill_status === 'RECEIVED' ? '#16a34a' : b.bill_status === 'CANCELLED' ? '#94a3b8' : '#ea580c',
-                            border: '1px solid ' + (b.bill_status === 'RECEIVED' ? '#bbf7d0' : b.bill_status === 'CANCELLED' ? '#e2e8f0' : '#fed7aa')
-                          }}>{b.bill_status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <DataTable<Bill>
+                  data={woBills}
+                  emptyMessage="No bills found"
+                  initialPageSize={10}
+                  pageSizeOptions={[10, 25, 50]}
+                  columns={[
+                    { header: 'Inv No', render: (b) => <span style={{ fontWeight: 700, color: '#f97316', fontFamily: 'IBM Plex Mono, monospace' }}>{b.inv_no}</span> },
+                    { header: 'WO', render: (b) => <span style={{ fontSize: 10, color: '#64748b' }}>{b.wo_no}</span> },
+                    { header: 'Site', render: (b) => <span style={{ fontSize: 10, color: '#64748b' }}>{b.site}</span> },
+                    { header: 'Details', render: (b) => <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>{b.bill_details}</span> },
+                    { header: 'Amount', render: (b) => <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{fmtINR(b.amount)}</span>, align: 'right' },
+                    { header: 'With GST', render: (b) => <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{fmtINR(b.amount_with_gst)}</span>, align: 'right' },
+                    { header: 'Status', render: (b) => (
+                      <span style={{ borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700,
+                        background: b.bill_status === 'RECEIVED' ? '#f0fdf4' : b.bill_status === 'CANCELLED' ? '#f1f5f9' : '#fff7ed',
+                        color: b.bill_status === 'RECEIVED' ? '#16a34a' : b.bill_status === 'CANCELLED' ? '#94a3b8' : '#ea580c',
+                        border: '1px solid ' + (b.bill_status === 'RECEIVED' ? '#bbf7d0' : b.bill_status === 'CANCELLED' ? '#e2e8f0' : '#fed7aa')
+                      }}>{b.bill_status}</span>
+                    )},
+                  ]}
+                />
               );
             })()}
           </div>
