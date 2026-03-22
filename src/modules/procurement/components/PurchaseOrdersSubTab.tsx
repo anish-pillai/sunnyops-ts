@@ -11,10 +11,13 @@ interface Props {
   pos: PurchaseOrder[];
   loading: boolean;
   isAdmin: boolean;
+  canFinalize?: boolean;
+  userRole?: string;
+  uName?: string;
   onSave: (po: Partial<PurchaseOrder>) => Promise<void>;
 }
 
-export const PurchaseOrdersSubTab: React.FC<Props> = ({ pos, loading, isAdmin, onSave }) => {
+export const PurchaseOrdersSubTab: React.FC<Props> = ({ pos, loading, isAdmin, canFinalize = false, uName, onSave }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<{ type: 'new' | 'edit', po?: PurchaseOrder } | null>(null);
@@ -46,6 +49,11 @@ export const PurchaseOrdersSubTab: React.FC<Props> = ({ pos, loading, isAdmin, o
         <div style={{ fontWeight: 800, fontSize: 18, color: '#0f172a', fontFamily: 'IBM Plex Mono, monospace' }}>🛒 Purchase Orders</div>
         {isAdmin && (
           <Button onClick={() => setModal({ type: 'new' })} style={{ background: '#7c3aed', color: '#fff' }}>+ New PO</Button>
+        )}
+        {!canFinalize && (
+          <div style={{ fontSize: 11, color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            🔒 Finalise requires Director / Admin approval
+          </div>
         )}
       </div>
 
@@ -119,6 +127,18 @@ export const PurchaseOrdersSubTab: React.FC<Props> = ({ pos, loading, isAdmin, o
                     {isAdmin && (
                       <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setModal({ type: 'edit', po }); }} style={{ fontSize: 10, padding: '4px 10px' }}>✎ Edit</Button>
                     )}
+                    {po.status === 'Draft' && canFinalize && (
+                      <Button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!confirm(`Finalise PO ${po.po_no}?`)) return;
+                          await onSave({ ...po, status: 'Pending Purchase', signed_by: uName || '', signed_at: new Date().toISOString() });
+                        }}
+                        style={{ fontSize: 10, padding: '4px 10px', background: '#16a34a', color: '#fff' }}
+                      >
+                        ✓ Finalise
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -131,6 +151,7 @@ export const PurchaseOrdersSubTab: React.FC<Props> = ({ pos, loading, isAdmin, o
         <Modal title={modal.type === 'new' ? 'New Purchase Order' : `Edit PO: ${modal.po?.po_no}`} wide onClose={() => setModal(null)}>
           <POFormModal 
             initial={modal.po} 
+            canFinalize={canFinalize}
             onClose={() => setModal(null)} 
             onSave={async (f: Partial<PurchaseOrder>) => {
               await onSave(f);

@@ -6,11 +6,12 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface Props {
   initial?: PurchaseOrder;
+  canFinalize?: boolean;
   onSave: (po: Partial<PurchaseOrder>) => Promise<void>;
   onClose: () => void;
 }
 
-export const POFormModal: React.FC<Props> = ({ initial, onSave, onClose }) => {
+export const POFormModal: React.FC<Props> = ({ initial, canFinalize = false, onSave, onClose }) => {
   const { user } = useAuth();
   const [f, setF] = useState<Partial<PurchaseOrder>>(initial || {
     po_no: '',
@@ -68,6 +69,8 @@ export const POFormModal: React.FC<Props> = ({ initial, onSave, onClose }) => {
       sub_total,
       total_gst,
       grand_total,
+      // Draft POs: null signer (shows 'Pending Signature' watermark)
+      signed_by: status === 'Draft' ? undefined : (f.signed_by || user?.email || undefined),
       created_by: f.created_by || user?.email || 'Admin'
     });
   };
@@ -144,9 +147,14 @@ export const POFormModal: React.FC<Props> = ({ initial, onSave, onClose }) => {
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-        <Button onClick={() => handleSave('Pending Purchase')} style={{ flex: 1, background: '#7c3aed' }}>Save & Approvable</Button>
+        {canFinalize && (
+          <Button onClick={() => handleSave('Pending Purchase')} style={{ flex: 1, background: '#7c3aed' }}>Save & Approvable</Button>
+        )}
         <Button variant="ghost" onClick={() => handleSave('Draft')} style={{ flex: 1 }}>Save as Draft</Button>
         <Button variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Button>
+        {!canFinalize && (
+          <div style={{ fontSize: 10, color: '#94a3b8', alignSelf: 'center' }}>🔒 Finalise requires Director / Admin</div>
+        )}
       </div>
     </div>
   );

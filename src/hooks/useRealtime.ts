@@ -7,6 +7,7 @@ type RealtimeTable =
   | 'site_requests'
   | 'challans'
   | 'store_items'
+  | 'purchase_orders'
   | 'inventory';
 
 /**

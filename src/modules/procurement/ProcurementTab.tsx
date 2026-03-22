@@ -5,8 +5,9 @@ import { PurchaseOrdersSubTab } from './components/PurchaseOrdersSubTab';
 import { QuotationsSubTab } from './components/QuotationsSubTab';
 
 export const ProcurementTab: React.FC = () => {
-  const { userRole } = useAuth();
+  const { userRole, userName } = useAuth();
   const isAdmin = userRole === 'admin' || userRole === 'director' || userRole === 'managing-director';
+  const canFinalize = ['admin', 'director', 'managing-director'].includes(userRole);
   const { pos, quotations, loading, fetchAll, savePO, saveQuotation } = useProcurement();
   const [activeTab, setActiveTab] = useState<'po' | 'quotations'>('po');
 
@@ -45,6 +46,9 @@ export const ProcurementTab: React.FC = () => {
             pos={pos} 
             loading={loading} 
             isAdmin={isAdmin} 
+            canFinalize={canFinalize}
+            userRole={userRole}
+            uName={userName}
             onSave={savePO} 
           />
         ) : (

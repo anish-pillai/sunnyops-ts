@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useBills } from '@/hooks/useBills';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/ui/DataTable';
 import { fmtINR, fmtDate } from '@/utils/formatters';
 import { DEFAULT_SITE_DETAILS } from '@/config/constants';
+import { getBal, getPaymentStatus, diffBill, logBillAudit } from '@/utils/billHelpers';
 import type { Bill, EInvoice } from '@/types/bill.types';
 import type { UserRole } from '@/types/user.types';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
@@ -13,6 +14,8 @@ import { useCDNotes } from '@/hooks/useCDNotes';
 import { WorkOrdersTab } from './components/WorkOrdersTab';
 import { EInvoiceTab } from './components/EInvoiceTab';
 import { CDNotesTab } from './components/CDNotesTab';
+import { SiteSearchFilter } from './components/SiteSearchFilter';
+import { BillAuditLog } from './components/BillAuditLog';
 
 interface Props {
   isAdmin: boolean;
@@ -22,7 +25,7 @@ interface Props {
   showToast: (msg: string, type?: 'ok' | 'err') => void;
 }
 
-type SubTab = 'bills' | 'e-invoice' | 'cdn' | 'work-orders';
+type SubTab = 'bills' | 'e-invoice' | 'cdn' | 'work-orders' | 'audit';
 
 const SITES = DEFAULT_SITE_DETAILS.map(s => s.name);
 const blank: Omit<Bill, 'id' | 'created_at'> = {
@@ -30,11 +33,14 @@ const blank: Omit<Bill, 'id' | 'created_at'> = {
   bill_details: '', amount: 0, amount_with_gst: 0,
   tds: 0, tds_on_gst: 0, security_deposit: 0, hra_deduction: 0, gst_hold: 0, other_deductions: 0,
   credit_note: 0, credit_note2: 0, hra_received: 0, sd_received: 0, gst_received: 0, others_received: 0, amount_credited: 0,
+  fines_penalty: 0, fines_received: 0, fines_txn_no: '',
+  dlp_hold: 0, dlp_received: 0, dlp_txn_no: '',
+  retention_hold: 0, retention_received: 0, retention_txn_no: '',
   balance_to_receive: 0,
   wo_no: '', bill_status: 'Pending', remarks: '',
 };
 
-export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showToast }) => {
+export const BillsTab: React.FC<Props> = ({ isAdmin, uName, userRole, assignedSites, showToast }) => {
   const [subTab, setSubTab] = useState<SubTab>('bills');
   const { bills, loading: billsLoading, fetch: fetchBills, save: saveBill, remove: removeBill } = useBills(assignedSites);
   const { workOrders, loading: woLoading, fetchWorkOrders, saveWorkOrder, deleteWorkOrder } = useWorkOrders();
@@ -44,6 +50,7 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
   const [search, setSearch] = useState('');
   const [siteFilter, setSiteFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [yearFilter, setYearFilter] = useState('All');
   const [modal, setModal] = useState<{ type: 'add' | 'edit' | 'view'; bill?: Bill } | null>(null);
   const [cardModal, setCardModal] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Bill, 'id' | 'created_at'>>(blank);
@@ -56,22 +63,32 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
     fetchCDNotes();
   }, [fetchBills, fetchWorkOrders, fetchEInvoices, fetchCDNotes]);
 
+  // Dynamic year list from actual bill data
+  const billYears = useMemo(() => {
+    const yrs: Record<string, boolean> = {};
+    bills.forEach(b => {
+      if (b.invoice_date) {
+        const yr = new Date(b.invoice_date).getFullYear();
+        if (!isNaN(yr)) yrs[String(yr)] = true;
+      }
+    });
+    return Object.keys(yrs).sort((a, b) => Number(b) - Number(a));
+  }, [bills]);
+
+  // Dynamic site list from actual bill data
+  const billSites = useMemo(() => {
+    const sites = new Set<string>();
+    bills.forEach(b => { if (b.site) sites.add(b.site); });
+    return Array.from(sites).sort();
+  }, [bills]);
+
   const filtered = bills.filter(b => {
     const s = !search || b.inv_no.toLowerCase().includes(search.toLowerCase()) || b.bill_details.toLowerCase().includes(search.toLowerCase());
     const si = siteFilter === 'All' || b.site === siteFilter;
     const st = statusFilter === 'All' || b.bill_status === statusFilter;
-    return s && si && st;
+    const yr = yearFilter === 'All' || (b.invoice_date && String(new Date(b.invoice_date).getFullYear()) === yearFilter);
+    return s && si && st && yr;
   });
-
-  const getBal = (b: Bill) => {
-    const stored = Number(b.balance_to_receive || 0);
-    if (stored > 0) return stored;
-    if (b.bill_status === 'RECEIVED' || b.bill_status === 'CANCELLED') return 0;
-    const base = Number(b.amount_with_gst || b.amount || 0);
-    const deductions = ['tds', 'tds_on_gst', 'security_deposit', 'hra_deduction', 'gst_hold', 'other_deductions', 'credit_note', 'credit_note2'].reduce((s, k) => s + Number((b as any)[k] || 0), 0);
-    const received = ['hra_received', 'sd_received', 'gst_received', 'others_received', 'amount_credited'].reduce((s, k) => s + Number((b as any)[k] || 0), 0);
-    return Math.max(0, base - deductions - received);
-  };
 
   const sf = (k: keyof typeof form, v: string | number) => {
     setForm(p => ({ ...p, [k]: v }));
@@ -80,9 +97,19 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
   const handleSave = async () => {
     if (!form.inv_no.trim()) return showToast('Bill number required', 'err');
     setSaving(true);
+    const oldBill = modal?.bill;
     const err = await saveBill({ ...form, updated_by: uName }, modal?.bill?.id);
     setSaving(false);
     if (err) return showToast(err, 'err');
+    // Audit log
+    if (modal?.type === 'edit' && oldBill) {
+      const changes = diffBill(oldBill, form);
+      if (Object.keys(changes).length > 0) {
+        logBillAudit(oldBill.id, oldBill.inv_no, 'EDITED', changes, uName, userRole);
+      }
+    } else if (modal?.type === 'add') {
+      logBillAudit('', form.inv_no, 'CREATED', {}, uName, userRole);
+    }
     showToast(`Bill ${modal?.type === 'edit' ? 'updated' : 'added'}`);
     setModal(null);
   };
@@ -91,7 +118,6 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
     const invNo = ei.inv_no || ei.invoice_no;
     if (ei.bill_id) { showToast('Already pushed to Bills', 'err'); return; }
     if (!window.confirm(`Push ${invNo} to Bills Register?\nThis creates a new receivable entry.`)) return;
-    // Build description from line items
     let items: any[] = [];
     try { items = typeof ei.line_items === 'string' ? JSON.parse(ei.line_items) : (ei.line_items || ei.items || []); } catch { /* empty */ }
     const desc = items.length ? items.map((it: any) => it.desc || it.description).join('; ') : 'E-Invoice: ' + invNo;
@@ -111,7 +137,6 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
     };
     const err = await saveBill(billPayload);
     if (err) { showToast(err, 'err'); return; }
-    // Update einvoice status to 'Pushed to Bills'
     try {
       await saveEInvoice({ status: 'Pushed to Bills' } as any, ei.id);
     } catch { /* best effort */ }
@@ -123,6 +148,7 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
     Partial: { bg: '#eff6ff', c: '#1d4ed8' },
     Paid:    { bg: '#f0fdf4', c: '#16a34a' },
     RECEIVED: { bg: '#f0fdf4', c: '#16a34a' },
+    'Partially Received': { bg: '#eff6ff', c: '#1d4ed8' },
     CANCELLED: { bg: '#fef2f2', c: '#dc2626' }
   };
 
@@ -130,11 +156,21 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
   const totalAmt = nonCancelled.reduce((s, b) => s + Number(b.amount || 0), 0);
   const totalGst = nonCancelled.reduce((s, b) => s + Number(b.amount_with_gst || 0), 0);
   const totalBal = nonCancelled.reduce((s, b) => s + getBal(b), 0);
+  const totalBalExGst = nonCancelled.reduce((s, b) => s + Math.max(0, getBal(b) - (Number(b.amount_with_gst || 0) - Number(b.amount || 0))), 0);
   const totalSD = filtered.reduce((s, b) => s + Math.max(0, Number(b.security_deposit || 0) - Number(b.sd_received || 0)), 0);
   const totalHRA = filtered.reduce((s, b) => s + Math.max(0, Number(b.hra_deduction || 0) - Number(b.hra_received || 0)), 0);
   const totalGSTH = filtered.reduce((s, b) => s + Math.max(0, Number(b.gst_hold || 0) - Number(b.gst_received || 0)), 0);
-  const receivedCount = filtered.filter(b => b.bill_status === 'RECEIVED').length;
-  const pendingCount = filtered.filter(b => b.bill_status !== 'RECEIVED' && b.bill_status !== 'CANCELLED').length;
+  // Use getBal() === 0 for received count instead of bill_status
+  const receivedCount = filtered.filter(b => getBal(b) === 0 && b.bill_status !== 'CANCELLED').length;
+  const pendingCount = filtered.filter(b => getBal(b) > 0 && b.bill_status !== 'CANCELLED').length;
+
+  const handleDelete = async (bill: Bill) => {
+    if (!confirm('Delete bill?')) return;
+    const err = await removeBill(bill.id);
+    if (err) { showToast(err, 'err'); return; }
+    logBillAudit(bill.id, bill.inv_no, 'DELETED', {}, uName, userRole);
+    showToast('Bill deleted');
+  };
 
   const handlePrintPDF = (type: string, rows: Bill[]) => {
     const title = type === 'billed' ? 'Total Billed' : type === 'gst' ? 'Billed (Incl GST)' : type === 'pending' ? 'Balance Pending' : type === 'sd' ? 'SD Hold' : type === 'hra' ? 'HRA Hold' : type === 'gsthold' ? 'GST Hold' : 'Bills';
@@ -208,13 +244,14 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
   return (
     <div>
       {/* Sub-tab Navigation */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid #e2e8f0' }}>
-        {(['bills', 'e-invoice', 'cdn', 'work-orders'] as SubTab[]).map((t) => {
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid #e2e8f0', flexWrap: 'wrap' }}>
+        {(['bills', 'e-invoice', 'cdn', 'work-orders', 'audit'] as SubTab[]).map((t) => {
           const labels: Record<SubTab, string> = { 
             'bills': '📊 Bills Register', 
             'e-invoice': '🧾 E-Invoice', 
             'cdn': '📋 CN / DN', 
-            'work-orders': '📑 Work Orders' 
+            'work-orders': '📑 Work Orders',
+            'audit': '🛡 Audit Log',
           };
           const isActive = subTab === t;
           return (
@@ -271,6 +308,8 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
         />
       )}
 
+      {subTab === 'audit' && <BillAuditLog />}
+
       {subTab === 'bills' && (
         <div>
           {/* Summary */}
@@ -278,7 +317,7 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
             {[
               { key: 'billed', l: 'Total Billed', v: fmtINR(totalAmt), c: '#f97316' },
               { key: 'gst', l: 'Incl. GST', v: fmtINR(totalGst), c: '#3b82f6' },
-              { key: 'pending', l: 'Balance Pending', v: fmtINR(totalBal), c: '#dc2626' },
+              { key: 'pending', l: 'Balance Pending', v: fmtINR(totalBal), c: '#dc2626', sub: `Excl. GST: ${fmtINR(totalBalExGst)}` },
               { key: 'sd', l: 'SD Unreceived', v: fmtINR(totalSD), c: '#d97706' },
               { key: 'hra', l: 'HRA Unreceived', v: fmtINR(totalHRA), c: '#8b5cf6' },
               { key: 'gsthold', l: 'GST Hold', v: fmtINR(totalGSTH), c: '#0891b2' },
@@ -295,19 +334,23 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
                   <span style={{ fontSize: 8, color: item.c, background: item.c + '15', border: '1px solid ' + item.c + '30', padding: '1px 5px', borderRadius: 3, letterSpacing: 0.5 }}>VIEW</span>
                 </div>
                 <div style={{ fontSize: item.v.toString().length > 10 ? 16 : 22, fontWeight: 700, color: item.c, fontFamily: 'IBM Plex Mono, monospace' }}>{item.v}</div>
+                {'sub' in item && item.sub && (
+                  <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 4, fontFamily: 'IBM Plex Mono, monospace' }}>{item.sub}</div>
+                )}
               </div>
             ))}
           </div>
 
           {/* Toolbar */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <input placeholder="Search bill no / desc..." value={search} onChange={e => setSearch(e.target.value)}
                 style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, minWidth: 180 }} />
-              <select value={siteFilter} onChange={e => setSiteFilter(e.target.value)}
+              <SiteSearchFilter sites={billSites} value={siteFilter} onChange={setSiteFilter} />
+              <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}
                 style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, background: '#f8fafc' }}>
                 <option>All</option>
-                {SITES.map(s => <option key={s}>{s}</option>)}
+                {billYears.map(y => <option key={y}>{y}</option>)}
               </select>
               <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
                 style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, background: '#f8fafc' }}>
@@ -348,8 +391,20 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
                 return <span style={{ color: hraPend > 0 ? '#8b5cf6' : '#94a3b8' }}>{hraPend > 0 ? fmtINR(hraPend) : '-'}</span>;
               }, align: 'right' },
               { header: 'Status', render: (bill) => {
-                const sc = statusColor[bill.bill_status] || { bg: '#f1f5f9', c: '#475569' };
-                return <span style={{ background: sc.bg, color: sc.c, borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap', border: '1px solid #e2e8f0' }}>{bill.bill_status}</span>;
+                const ps = getPaymentStatus(bill);
+                const sc = statusColor[ps.status] || { bg: '#f1f5f9', c: '#475569' };
+                return (
+                  <div>
+                    <span style={{ background: sc.bg, color: sc.c, borderRadius: 20, padding: '2px 8px', fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap', border: '1px solid #e2e8f0' }}>{ps.status}</span>
+                    {ps.tags.length > 0 && (
+                      <div style={{ marginTop: 3 }}>
+                        {ps.tags.map(tag => (
+                          <div key={tag} style={{ fontSize: 8, color: '#94a3b8', whiteSpace: 'nowrap' }}>{tag}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
               }},
               { header: 'GST', render: (bill) => (
                 <>
@@ -367,7 +422,7 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
                   {isAdmin && (
                     <>
                       <Button variant="ghost" style={{ fontSize: 9, padding: '3px 8px', height: 'auto' }} onClick={() => { setForm({ ...bill }); setModal({ type: 'edit', bill }); }}>Edit</Button>
-                      <Button variant="danger" style={{ fontSize: 9, padding: '3px 8px', height: 'auto' }} onClick={async () => { if (confirm('Delete bill?')) { const err = await removeBill(bill.id); err ? showToast(err, 'err') : showToast('Bill deleted'); } }}>Del</Button>
+                      <Button variant="danger" style={{ fontSize: 9, padding: '3px 8px', height: 'auto' }} onClick={() => handleDelete(bill)}>Del</Button>
                     </>
                   )}
                 </div>
@@ -389,6 +444,28 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
               ['Description', 'bill_details', 'text', null, true],
               ['Billed Amount', 'amount', 'number'],
               ['Billed Amount (GST)', 'amount_with_gst', 'number'],
+              ['TDS', 'tds', 'number'],
+              ['TDS on GST', 'tds_on_gst', 'number'],
+              ['Security Deposit', 'security_deposit', 'number'],
+              ['SD Received', 'sd_received', 'number'],
+              ['HRA Deduction', 'hra_deduction', 'number'],
+              ['HRA Received', 'hra_received', 'number'],
+              ['GST Hold', 'gst_hold', 'number'],
+              ['GST Received', 'gst_received', 'number'],
+              ['Other Deductions', 'other_deductions', 'number'],
+              ['Others Received', 'others_received', 'number'],
+              ['Credit Note', 'credit_note', 'number'],
+              ['Credit Note 2', 'credit_note2', 'number'],
+              ['Fines & Penalties', 'fines_penalty', 'number'],
+              ['Fines Received', 'fines_received', 'number'],
+              ['Fines Txn No', 'fines_txn_no', 'text'],
+              ['DLP Hold', 'dlp_hold', 'number'],
+              ['DLP Received', 'dlp_received', 'number'],
+              ['DLP Txn No', 'dlp_txn_no', 'text'],
+              ['Retention Hold', 'retention_hold', 'number'],
+              ['Retention Received', 'retention_received', 'number'],
+              ['Retention Txn No', 'retention_txn_no', 'text'],
+              ['Amount Credited', 'amount_credited', 'number'],
               ['Status', 'bill_status', 'select', ['Pending', 'Partial', 'Paid', 'RECEIVED', 'CANCELLED']],
               ['GST Status', 'gst_status', 'select', ['', 'PAID', 'UNPAID']],
               ['Status 2', 'status2', 'text'],
@@ -434,8 +511,8 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
                       if (cardModal === 'sd') return Number(b.security_deposit || 0) - Number(b.sd_received || 0) > 0;
                       if (cardModal === 'hra') return Number(b.hra_deduction || 0) - Number(b.hra_received || 0) > 0;
                       if (cardModal === 'gsthold') return Number(b.gst_hold || 0) - Number(b.gst_received || 0) > 0;
-                      if (cardModal === 'received') return b.bill_status === 'RECEIVED';
-                      return b.bill_status !== 'RECEIVED' && b.bill_status !== 'CANCELLED';
+                      if (cardModal === 'received') return getBal(b) === 0 && b.bill_status !== 'CANCELLED';
+                      return getBal(b) > 0 && b.bill_status !== 'CANCELLED';
                     });
                     const total = cardModal === 'billed' ? rows.reduce((s, b) => s + Number(b.amount || 0), 0) : cardModal === 'gst' ? rows.reduce((s, b) => s + Number(b.amount_with_gst || 0), 0) : cardModal === 'pending' ? rows.reduce((s, b) => s + getBal(b), 0) : cardModal === 'sd' ? rows.reduce((s, b) => s + Math.max(0, Number(b.security_deposit || 0) - Number(b.sd_received || 0)), 0) : cardModal === 'hra' ? rows.reduce((s, b) => s + Math.max(0, Number(b.hra_deduction || 0) - Number(b.hra_received || 0)), 0) : cardModal === 'gsthold' ? rows.reduce((s, b) => s + Math.max(0, Number(b.gst_hold || 0) - Number(b.gst_received || 0)), 0) : null;
                     return `${rows.length} bills ${total ? ` · ${fmtINR(total)}` : ''}`;
@@ -452,8 +529,8 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
                     if (cardModal === 'sd') return Number(b.security_deposit || 0) - Number(b.sd_received || 0) > 0;
                     if (cardModal === 'hra') return Number(b.hra_deduction || 0) - Number(b.hra_received || 0) > 0;
                     if (cardModal === 'gsthold') return Number(b.gst_hold || 0) - Number(b.gst_received || 0) > 0;
-                    if (cardModal === 'received') return b.bill_status === 'RECEIVED';
-                    return b.bill_status !== 'RECEIVED' && b.bill_status !== 'CANCELLED';
+                    if (cardModal === 'received') return getBal(b) === 0 && b.bill_status !== 'CANCELLED';
+                    return getBal(b) > 0 && b.bill_status !== 'CANCELLED';
                   });
                   handlePrintPDF(cardModal, rows);
                 }}
@@ -480,8 +557,8 @@ export const BillsTab: React.FC<Props> = ({ isAdmin, uName, assignedSites, showT
                   if (cardModal === 'sd') return Number(b.security_deposit || 0) - Number(b.sd_received || 0) > 0;
                   if (cardModal === 'hra') return Number(b.hra_deduction || 0) - Number(b.hra_received || 0) > 0;
                   if (cardModal === 'gsthold') return Number(b.gst_hold || 0) - Number(b.gst_received || 0) > 0;
-                  if (cardModal === 'received') return b.bill_status === 'RECEIVED';
-                  return b.bill_status !== 'RECEIVED' && b.bill_status !== 'CANCELLED';
+                  if (cardModal === 'received') return getBal(b) === 0 && b.bill_status !== 'CANCELLED';
+                  return getBal(b) > 0 && b.bill_status !== 'CANCELLED';
                 }).map(b => (
                   <tr key={b.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '10px 12px', fontWeight: 700 }}>{b.inv_no}</td>

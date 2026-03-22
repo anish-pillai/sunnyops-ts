@@ -29,6 +29,9 @@ export interface PurchaseOrder {
   grand_total: number;
   status: POStatus;
   terms?: string;
+  signed_by?: string;
+  signed_desig?: string;
+  signed_at?: string;
   created_by: string;
   created_at: string;
 }

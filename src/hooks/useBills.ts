@@ -8,7 +8,7 @@ export function useBills(assignedSites?: string[]) {
 
   const fetch = useCallback(async () => {
     setLoading(true);
-    let query = db.from('bills').select('*').order('invoice_date', { ascending: false });
+    let query = db.from('bills').select('*').order('invoice_date', { ascending: false }).limit(5000);
     if (assignedSites?.length) query = query.in('site', assignedSites);
     const { data } = await query;
     setBills(data ?? []);

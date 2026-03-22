@@ -44,7 +44,7 @@ export const App: React.FC = () => {
   }, []);
 
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
-  useRealtime(['bills', 'payables', 'site_requests', 'challans', 'store_items'], refresh);
+  useRealtime(['bills', 'payables', 'site_requests', 'challans', 'store_items', 'purchase_orders'], refresh);
 
   const TABS: TabDef[] = [];
   if (isAdmin || getPerm('dashboard'))    TABS.push({ key: 'dashboard',   label: 'Dashboard',  icon: '📊' });
@@ -102,7 +102,7 @@ export const App: React.FC = () => {
         <ErrorBoundary>
           <React.Suspense fallback={<Spinner />}>
             <Routes>
-              <Route path="/dashboard" element={<DashboardTab key={refreshKey} assignedSites={assignedSites} isDirector={auth.userRole === 'director' || isMD} isAdmin={isAdmin} uName={auth.userName} userRole={auth.userRole} getPerm={getPerm} showToast={showToast} />} />
+              <Route path="/dashboard" element={<DashboardTab key={refreshKey} assignedSites={assignedSites} isDirector={auth.userRole === 'director' || auth.userRole === 'managing-director'} isAdmin={isAdmin} uName={auth.userName} userRole={auth.userRole} getPerm={getPerm} showToast={showToast} />} />
               <Route path="/inventory" element={<InventoryTab key={refreshKey} isAdmin={isAdmin} uName={auth.userName} showToast={showToast} />} />
               <Route path="/store" element={<StoreTab key={refreshKey} isAdmin={isAdmin} uName={auth.userName} assignedSites={assignedSites} showToast={showToast} />} />
               <Route path="/bills" element={<BillsTab key={refreshKey} isAdmin={isAdmin} uName={auth.userName} userRole={auth.userRole} assignedSites={assignedSites} showToast={showToast} />} />

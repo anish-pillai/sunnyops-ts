@@ -40,7 +40,7 @@ export const DEFAULT_PERMISSIONS: AllRolePermissions = {
   supervisor:          { dashboard: true,  inventory: true,  store: true,  challans: true,  bills: false, payables: false, requests: true,  logs: true,  procurement: false, hr_letters: false, settings: false },
   'inv-manager':       { dashboard: true,  inventory: true,  store: true,  challans: true,  bills: false, payables: false, requests: true,  logs: true,  procurement: false, hr_letters: false, settings: false },
   'fin-manager':       { dashboard: true,  inventory: false, store: false, challans: false, bills: true,  payables: true,  requests: false, logs: false, procurement: true,  hr_letters: false, settings: false },
-  accounts:            { dashboard: true,  inventory: false, store: false, challans: true,  bills: true,  payables: true,  requests: true,  logs: false, procurement: false, hr_letters: false, settings: false },
+  accounts:            { dashboard: true,  inventory: false, store: false, challans: true,  bills: true,  payables: true,  requests: true,  logs: false, procurement: true,  hr_letters: false, settings: false },
   'managing-director': { dashboard: true,  inventory: true,  store: true,  challans: true,  bills: true,  payables: true,  requests: true,  logs: true,  procurement: true,  hr_letters: true,  settings: false },
   director:            { dashboard: true,  inventory: true,  store: true,  challans: true,  bills: true,  payables: true,  requests: true,  logs: true,  procurement: true,  hr_letters: true,  settings: false },
   planning_dept:       { dashboard: true,  inventory: true,  store: false, challans: false, bills: false, payables: false, requests: true,  logs: false, procurement: true,  hr_letters: false, settings: false },
@@ -51,7 +51,13 @@ export const DEFAULT_PERMISSIONS: AllRolePermissions = {
 export function getPermissions(role: UserRole, overrides: AllRolePermissions = {}): RolePermissions {
   const defaults = DEFAULT_PERMISSIONS[role] ?? DEFAULT_PERMISSIONS.staff!;
   const override = overrides[role];
-  return override ? { ...defaults, ...override } : { ...defaults };
+  if (!override) return { ...defaults };
+  // OR-merge: defaults always win, DB can only add more access, never block
+  const merged = { ...defaults } as RolePermissions;
+  for (const key of Object.keys(override) as Array<keyof RolePermissions>) {
+    if (override[key] === true) merged[key] = true;
+  }
+  return merged;
 }
 
 export function hasPerm(role: UserRole, perm: PermissionKey, overrides: AllRolePermissions = {}): boolean {

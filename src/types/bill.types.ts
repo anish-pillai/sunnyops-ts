@@ -22,6 +22,15 @@ export interface Bill {
   gst_received?: number;
   others_received?: number;
   amount_credited?: number;
+  fines_penalty?: number;
+  fines_received?: number;
+  fines_txn_no?: string;
+  dlp_hold?: number;
+  dlp_received?: number;
+  dlp_txn_no?: string;
+  retention_hold?: number;
+  retention_received?: number;
+  retention_txn_no?: string;
   wo_no?: string;
   bill_status: string;
   gst_status?: string;
