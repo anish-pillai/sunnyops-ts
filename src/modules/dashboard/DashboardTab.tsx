@@ -75,7 +75,7 @@ export const DashboardTab: React.FC<Props> = ({ assignedSites }) => {
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Total Billed', val: fmtINR(totalBilled), color: colors.info, bg: colors.infoBg, br: colors.infoBorder },
+          { label: 'Billed together', val: fmtINR(totalBilled), color: colors.info, bg: colors.infoBg, br: colors.infoBorder },
           { label: 'Received', val: fmtINR(totalPaid), color: colors.successDark, bg: colors.successBg, br: colors.successBorder },
           { label: 'Outstanding', val: fmtINR(totalReceivable), color: colors.danger, bg: colors.dangerBg, br: colors.dangerBorder },
           { label: 'Payable', val: fmtINR(totalPayable), color: colors.warning, bg: colors.warningBg, br: colors.warningBorder },
