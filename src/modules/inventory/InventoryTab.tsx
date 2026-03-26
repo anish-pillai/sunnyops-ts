@@ -6,6 +6,10 @@ import { DataTable } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
 import { InventoryDetailPopup } from './InventoryDetailPopup';
 import { InventoryListPopup } from './InventoryListPopup';
+import { ChallanModal } from './components/ChallanModal';
+import { ImportPreview } from './components/ImportPreview';
+import { db } from '@/config/supabase';
+import * as XLSX from 'xlsx';
 import { INVENTORY_CATEGORIES, CONDITIONS, UNITS, DEFAULT_SITE_DETAILS } from '@/config/constants';
 import type { InventoryItem } from '@/types/inventory.types';
 
@@ -24,6 +28,9 @@ export const InventoryTab: React.FC<Props> = ({ isAdmin, uName, showToast }) => 
   const [listPopup, setListPopup] = useState<{ type: 'low_stock' | 'tpi_expiring'; items: InventoryItem[] } | null>(null);
   const [form, setForm] = useState<Omit<InventoryItem, 'id' | 'created_at'>>(blank);
   const [saving, setSaving] = useState(false);
+  const [challanModal, setChallanModal] = useState(false);
+  const [importPreview, setImportPreview] = useState<any>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetch(); }, [fetch]);
 
@@ -53,6 +60,231 @@ export const InventoryTab: React.FC<Props> = ({ isAdmin, uName, showToast }) => 
     if (!confirm(`Delete "${item.name}"?`)) return;
     const err = await remove(item.id);
     err ? showToast(err, 'err') : showToast('Item deleted');
+  };
+
+  const exportItemsXLSX = () => {
+    const ObjectRows = [['Name', 'Category', 'Unit', 'Qty', 'Min Qty', 'Unit Cost', 'Site']];
+    filtered.forEach(it => {
+      ObjectRows.push([it.name || '', it.category || '', it.unit || '', it.qty || 0, it.min_qty || 0, (it as any).unit_cost || 0, it.site || '']);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(ObjectRows);
+    ws['!cols'] = [{ wch: 30 }, { wch: 22 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 14 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Store Items');
+    XLSX.writeFile(wb, `store_items_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const exportItemsPDF = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    
+    let html = `<html><head><title>Inventory Report</title><style>
+      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      body { font-family: 'Inter', sans-serif; font-size: 11px; color: #333; padding: 20px; }
+      .header-container { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px; }
+      .logo-section { display: flex; align-items: center; gap: 15px; }
+      .logo-img { height: 50px; width: 50px; object-fit: contain; }
+      .company-info h1 { margin: 0; font-size: 18px; color: #e87c38; font-weight: 600; letter-spacing: 0.5px; }
+      .company-details { font-size: 10px; color: #64748b; margin-top: 4px; }
+      .date-section { font-size: 11px; color: #64748b; margin-bottom: 2px; }
+      .divider { height: 3px; background-color: #e87c38; border: none; margin: 15px 0 20px 0; }
+      .report-title { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 15px; }
+      table { width: 100%; border-collapse: collapse; font-size: 10px; }
+      th { background-color: #e87c38; color: white; padding: 10px 8px; text-align: left; font-weight: 600; }
+      td { border-bottom: 1px solid #f1f5f9; padding: 8px; color: #334155; }
+      tr:nth-child(even) { background-color: #fafafa; }
+      .qty-cell { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 11px; }
+    </style></head><body>
+      <div class="header-container">
+        <div class="logo-section">
+          <img src="/logo.png" class="logo-img" onerror="this.style.display='none'" />
+          <div class="company-info">
+            <h1>P. Sunny Engineering Contractors (OPC) Pvt. Ltd.</h1>
+            <div class="company-details">Mangaluru, Karnataka 575030 | GSTIN: 29AAOCP5225B1ZE | LL: 08246637172 | M: 8050196063 | sunny@sunnyengg.com</div>
+          </div>
+        </div>
+        <div class="date-section">Date: ${dateStr}</div>
+      </div>
+      <hr class="divider" />
+      <div class="report-title">Inventory Report</div>
+      <table>
+        <tr>
+          <th style="width: 30px;">#</th>
+          <th>Equipment</th>
+          <th>Alias</th>
+          <th>Category</th>
+          <th>Site</th>
+          <th style="width: 60px;">Qty</th>
+          <th style="width: 60px;">Unit</th>
+          <th>Condition</th>
+          <th>Serial No.</th>
+        </tr>`;
+    
+    filtered.forEach((it, idx) => {
+      html += `<tr>
+        <td>${idx + 1}</td>
+        <td style="font-weight: 600; color: #1e293b; text-transform: uppercase;">${it.name}</td>
+        <td>${it.alias || '-'}</td>
+        <td>${it.category}</td>
+        <td>${it.site}</td>
+        <td class="qty-cell">${it.qty}</td>
+        <td>${it.unit}</td>
+        <td>${it.condition}</td>
+        <td>${it.serial_no || '-'}</td>
+      </tr>`;
+    });
+    
+    html += `</table>
+      <script>
+        window.onload = function() { 
+          setTimeout(() => { window.print(); }, 500);
+        }
+      </script>
+    </body></html>`;
+    
+    const printWin = window.open('', '_blank');
+    if (printWin) {
+      printWin.document.write(html);
+      printWin.document.close();
+    } else {
+      showToast('Popup blocked! Allow popups to print PDF.', 'err');
+    }
+  };
+
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Name', 'Category', 'Unit', 'Qty', 'Unit Cost', 'Site'],
+      ['Example Equipment', 'PPE', 'Nos', 10, 500, 'MRPL']
+    ]);
+    ws['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 20 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, `Inventory_Template_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json<any>(ws, { header: 1 });
+      
+      const headerIdx = raw.findIndex((r: any[]) => r?.[0]?.toString().toLowerCase().trim() === 'name');
+      if (headerIdx < 0) return showToast('Invalid template: No "Name" header found', 'err');
+      
+      const headers = raw[headerIdx].map((h: any) => h?.toString().toLowerCase().trim());
+      const rows = raw.slice(headerIdx + 1).filter((r: any[]) => {
+        const nCol = headers.indexOf('name');
+        return nCol >= 0 && r[nCol]?.toString().trim();
+      });
+      
+      const parsed = rows.map((r: any[]) => {
+        const get = (c: string) => r[headers.indexOf(c)];
+        return {
+          name: get('name')?.toString().trim(),
+          category: get('category')?.toString().trim() || 'General',
+          unit: get('unit')?.toString().trim() || 'Nos',
+          qty: parseFloat(get('qty')) || 0,
+          unit_cost: parseFloat(get('unit_cost')) || 0,
+          site: get('site')?.toString().trim() || 'MRPL'
+        };
+      });
+
+      const newItems: any[] = [];
+      const updatedItems: any[] = [];
+      const errors: any[] = [];
+
+      parsed.forEach((row, i) => {
+        if (!row.name || row.qty <= 0) {
+          errors.push({ row: i + headerIdx + 2, reason: 'Invalid name or quantity' });
+          return;
+        }
+        const existing = items.find(it => it.name.toLowerCase() === row.name.toLowerCase() && it.site === row.site);
+        if (existing) {
+          updatedItems.push({ id: existing.id, oldQty: existing.qty, newQty: existing.qty + row.qty, ...row, name: existing.name });
+        } else {
+          newItems.push(row);
+        }
+      });
+
+      setImportPreview({ newItems, updatedItems, errors });
+    } catch (err: any) {
+      showToast(`Import parsing error: ${err.message}`, 'err');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!importPreview) return;
+    setSaving(true);
+    const { newItems, updatedItems } = importPreview;
+    
+    try {
+      if (newItems.length > 0) {
+        const toAdd = newItems.map((n: any) => ({
+          ...n,
+          min_qty: 1, condition: 'Good',
+          created_at: new Date().toISOString(),
+          created_by_name: uName
+        }));
+        await db.from('inventory').insert(toAdd);
+      }
+      
+      for (const u of updatedItems) {
+        await db.from('inventory').update({ qty: u.newQty, updated_by: uName, updated_at: new Date().toISOString() }).eq('id', u.id);
+      }
+      
+      showToast(`Import successful: ${newItems.length} new, ${updatedItems.length} updated`);
+      await fetch();
+      setImportPreview(null);
+    } catch (err: any) {
+      showToast(`Database error: ${err.message}`, 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateChallan = async (data: any, selectedItem: InventoryItem) => {
+    setSaving(true);
+    try {
+      // Decrement source
+      const newSrcQty = Math.max(0, selectedItem.qty - data.qty);
+      await db.from('inventory').update({ qty: newSrcQty, updated_by: uName, updated_at: new Date().toISOString() }).eq('id', selectedItem.id);
+
+      // Increment/Create destination
+      const dstItem = items.find(i => i.site === data.toSite && i.name.toLowerCase() === selectedItem.name.toLowerCase());
+      if (dstItem) {
+        await db.from('inventory').update({ qty: dstItem.qty + data.qty, updated_by: uName, updated_at: new Date().toISOString() }).eq('id', dstItem.id);
+      } else {
+        const payload = { ...selectedItem, site: data.toSite, qty: data.qty, updated_by: uName, updated_at: new Date().toISOString() };
+        delete (payload as any).id;
+        delete (payload as any).created_at;
+        await db.from('inventory').insert([payload]);
+      }
+
+      await db.from('challans').insert([{
+        item_id: selectedItem.id,
+        item_name: selectedItem.name,
+        qty: data.qty,
+        from_site: data.fromSite,
+        to_site: data.toSite,
+        remarks: data.remarks,
+        requested_by: data.requestedBy,
+        created_by: uName
+      }]);
+
+      showToast(`Challan created: Transfered ${data.qty} to ${data.toSite}`);
+      await fetch();
+      setChallanModal(false);
+    } catch (err: any) {
+      showToast(`Transfer error: ${err.message}`, 'err');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <Spinner />;
@@ -101,11 +333,12 @@ export const InventoryTab: React.FC<Props> = ({ isAdmin, uName, showToast }) => 
 
       {/* Action Buttons */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={() => showToast('Export coming soon')}>Export</Button>
-        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={() => showToast('PDF coming soon')}>↓ PDF</Button>
-        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={() => showToast('Import coming soon')}>Import</Button>
-        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={() => showToast('Template coming soon')}>🔥 Template</Button>
-        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={() => showToast('New Challan coming soon')}>New Challan</Button>
+        <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".xlsx, .xls" onChange={handleImport} />
+        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={exportItemsXLSX}>Export</Button>
+        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={exportItemsPDF}>↓ PDF</Button>
+        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={() => fileInputRef.current?.click()}>Import</Button>
+        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={downloadTemplate}>🔥 Template</Button>
+        <Button variant="ghost" style={{ fontSize: 11, padding: '8px 16px' }} onClick={() => setChallanModal(true)}>New Challan</Button>
         <div style={{ flex: 1 }} />
         {isAdmin && <Button onClick={openAdd} style={{ padding: '8px 20px' }}>+ Add Item</Button>}
       </div>
@@ -213,6 +446,7 @@ export const InventoryTab: React.FC<Props> = ({ isAdmin, uName, showToast }) => 
       {detailItem && (
         <InventoryDetailPopup
           item={detailItem}
+          allItems={items}
           isAdmin={isAdmin}
           onClose={() => setDetailItem(null)}
           onEdit={openEdit}
@@ -229,6 +463,26 @@ export const InventoryTab: React.FC<Props> = ({ isAdmin, uName, showToast }) => 
             setListPopup(null);
             setDetailItem(item);
           }}
+        />
+      )}
+      
+      {/* Challan Modal */}
+      {challanModal && (
+        <ChallanModal
+          items={items}
+          onClose={() => setChallanModal(false)}
+          onSave={handleCreateChallan}
+          saving={saving}
+        />
+      )}
+      
+      {/* Import Preview */}
+      {importPreview && (
+        <ImportPreview
+          parsed={importPreview}
+          onClose={() => setImportPreview(null)}
+          onConfirm={confirmImport}
+          saving={saving}
         />
       )}
     </div>
